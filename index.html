@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="nl-BE">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2E7D5B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calorieteller">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Calorieteller</title>
+<style>
+:root{--g:#2E7D5B;--g2:#E8F4EE;--b:#1F6F8B;--o:#F28C28;--r:#C62828;--t:#263238;--m:#667A84;--bg:#F4F7F5;--line:#ECEFF1;color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--t);padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:var(--g);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:10px}
+header h1{margin:0;font-size:19px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bmi{border:0;background:#fff;color:var(--t);border-radius:20px;padding:6px 12px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.bmi i{width:10px;height:10px;border-radius:50%;display:inline-block;background:#B0BEC5}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #DDE4E1;display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;border:0;background:none;padding:8px 0 10px;font-size:12px;color:var(--m);font-weight:600}
+nav button b{display:block;font-size:21px;line-height:1.3}
+nav button.on{color:var(--g)}
+main{padding:12px;max-width:560px;margin:auto}
+section[data-tab]{display:none}section[data-tab].on{display:block}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card h2{margin:0 0 10px;font-size:13px;color:var(--m);font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+input,select{font:inherit;font-size:17px;padding:11px 12px;border:1px solid #CFD8DC;border-radius:12px;width:100%;background:#fff;color:var(--t)}
+input:focus,select:focus{outline:2px solid var(--g);border-color:transparent}
+label{display:block;font-size:13px;color:var(--m);margin:10px 0 4px}
+.row{display:flex;gap:8px;align-items:flex-end}
+select{height:48px;-webkit-appearance:none;appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23667A84' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center;padding-right:32px}
+input{height:48px}.row>*{flex:1}
+.btn{border:0;border-radius:12px;padding:14px;font-size:17px;font-weight:700;background:var(--g);color:#fff;width:100%;margin-top:10px}
+.btn.sec{background:var(--g2);color:var(--g)}
+.btn:disabled{opacity:.5}
+.lnk{border:0;background:none;color:var(--g);font-weight:700;font-size:14px;padding:4px}
+.small{font-size:13px;color:var(--m);line-height:1.4}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stats.three{grid-template-columns:1fr 1fr 1fr}
+.stat{background:var(--g2);border-radius:12px;padding:10px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--m)}
+.bar{height:14px;background:#E0E0E0;border-radius:7px;overflow:hidden;margin:12px 0 4px}
+.bar div{height:100%;background:linear-gradient(90deg,#66BB6A,var(--g));width:0;transition:width .5s}
+.bar div.over{background:linear-gradient(90deg,var(--o),var(--r))}
+.big{font-size:30px;font-weight:800;margin:2px 0}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--m);justify-content:center;margin-top:4px}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+ul{list-style:none;padding:0;margin:0}
+li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--line)}
+li:last-child{border-bottom:0}
+li .nm{flex:1;min-width:0}
+li .nm small{display:block;color:var(--m);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+li .v{font-weight:700;white-space:nowrap}
+li .x{border:0;background:none;color:#B0BEC5;font-size:18px;padding:4px 6px}
+.up{color:var(--r)}.down{color:var(--g)}
+.tip{background:linear-gradient(135deg,#FFF8E1,#FFFDE7);border-left:5px solid var(--o)}
+.warn{background:#FFF3E0;border-left:5px solid var(--o)}
+.daynav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.daynav button{border:0;background:#fff;border-radius:12px;width:46px;height:42px;font-size:22px;color:var(--g);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.daynav div{flex:1;text-align:center;font-weight:700;font-size:17px}
+.daynav div small{display:block;font-weight:400;font-size:12px;color:var(--m)}
+.meal.empty{padding:8px 16px}.meal.empty h2{margin:0}.meal.empty .lnk{text-transform:none;letter-spacing:0}
+.meal h2 span{color:var(--t);text-transform:none;letter-spacing:0;font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.chip{border:1px solid #CFD8DC;background:#fff;border-radius:18px;padding:7px 12px;font-size:14px;color:var(--t)}
+.chip.on{background:var(--g);border-color:var(--g);color:#fff}
+.bmiscale{position:relative;height:14px;border-radius:7px;margin:14px 0 22px;background:linear-gradient(90deg,#1F6F8B 0 14%,#2E7D5B 14% 40%,#F28C28 40% 60%,#C62828 60%)}
+.bmiscale b{position:absolute;top:-5px;width:4px;height:24px;background:var(--t);border-radius:2px;transform:translateX(-2px)}
+.bmiscale span{position:absolute;top:18px;font-size:10px;color:var(--m);transform:translateX(-50%)}
+details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--t);color:#fff;padding:10px 18px;border-radius:20px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:50;max-width:90%;text-align:center}
+.toast.show{opacity:1}
+/* toevoeg-scherm */
+.sheet{position:fixed;inset:0;background:var(--bg);z-index:20;display:none;flex-direction:column}
+.sheet.on{display:flex}
+.sheet .top{background:var(--g);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;align-items:center;gap:8px}
+.sheet .top h3{margin:0;flex:1;font-size:18px}
+.sheet .top button{border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:8px 12px;font-size:16px;font-weight:700}
+.sheet .body{flex:1;overflow:auto;padding:12px;max-width:560px;width:100%;margin:0 auto}
+.search{display:flex;gap:6px}
+.search input{flex:1}
+.ib{border:0;border-radius:12px;width:50px;flex:0 0 50px;font-size:22px;background:var(--g2);color:var(--g)}
+.ib.rec{background:var(--r);color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+.res li{cursor:pointer}
+.res li.nodata{opacity:.55}
+.queue{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.queue .chip{font-size:13px;padding:5px 10px}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{border:0;width:48px;height:48px;border-radius:12px;background:var(--g2);color:var(--g);font-size:24px;font-weight:700}
+.stepper input{text-align:center;font-size:20px;font-weight:700}
+.total{text-align:center;font-size:34px;font-weight:800;margin:16px 0 4px;color:var(--g)}
+#scan{position:fixed;inset:0;background:#000;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center}
+#scan.on{display:flex}
+#scan video{width:100%;max-height:75vh;object-fit:cover}
+#scan p{color:#fff}
+.spin{text-align:center;color:var(--m);padding:16px}
+</style>
+</head>
+<body>
+<header><h1 id="hname">Calorieteller</h1><button class="bmi" id="hbmi"><i></i><span>BMI –</span></button></header>
+
+<main>
+<!-- ============ VANDAAG ============ -->
+<section data-tab="today">
+ <div class="daynav"><button id="prevDay" aria-label="Vorige dag">‹</button><div id="dayLbl"></div><button id="nextDay" aria-label="Volgende dag">›</button></div>
+ <div class="card warn" id="bakWarn" style="display:none"><h2>💾 Tijd voor een back-up</h2><div class="small">Je gegevens staan enkel op deze gsm. Maak af en toe een back-up via ⚙️ Instellingen.</div></div>
+ <div class="card"><h2>Balans</h2><div id="bal"></div></div>
+ <button class="btn" id="addFood" style="margin:0 0 12px">＋ Eten of drinken toevoegen</button>
+ <div id="meals"></div>
+ <div class="card">
+  <h2>🏃 Activiteit (Polar Flow)</h2>
+  <div class="small">Neem het getal over uit het dagoverzicht van Polar Flow. Vul <b>één</b> van beide in. Leeg = schatting op basis van je profiel.</div>
+  <div class="row">
+   <div><label>Totaal verbruik (kcal)</label><input id="polTot" inputmode="numeric" placeholder="bv. 2650"></div>
+   <div><label>Enkel actieve kcal</label><input id="polAct" inputmode="numeric" placeholder="bv. 650"></div>
+  </div>
+  <label>Wat heb je gedaan?</label><input id="note" placeholder="bv. 45 min wandelen, 5 km lopen">
+ </div>
+ <div class="card"><h2>Laatste 7 dagen</h2><svg id="week" viewBox="0 0 360 170"></svg>
+  <div class="legend"><span><i style="background:var(--g);height:10px"></i>Gegeten</span><span><i style="background:var(--r);height:10px"></i>Boven budget</span><span><i style="background:var(--t)"></i>Budget</span></div></div>
+ <div class="card tip"><h2>💡 Tip van de dag</h2><div id="tip"></div></div>
+</section>
+
+<!-- ============ GEWICHT ============ -->
+<section data-tab="weight">
+ <div class="card">
+  <h2>Meting</h2>
+  <input id="wd" type="date">
+  <input id="w" inputmode="decimal" placeholder="kg, bv. 92,4" style="font-size:30px;height:auto;text-align:center;font-weight:700;margin-top:8px">
+  <button class="btn" id="wsave">Opslaan</button>
+ </div>
+ <div class="card"><h2>BMI</h2><div id="bmiBox"></div></div>
+ <div class="card">
+  <h2>Voortgang</h2>
+  <div class="stats" id="wstats"></div>
+  <div class="bar"><div id="wbar"></div></div>
+  <div class="small" id="wbartxt"></div>
+ </div>
+ <div class="card">
+  <h2>Grafiek</h2>
+  <svg id="chart" viewBox="0 0 360 220"></svg>
+  <div class="legend"><span><i style="background:var(--g)"></i>Gewicht</span><span><i style="background:var(--b)"></i>7-daags gem.</span><span><i style="background:var(--o)"></i>Doellijn</span></div>
+ </div>
+ <div class="card"><h2>Metingen</h2><ul id="wlist"></ul></div>
+</section>
+
+<!-- ============ INSTELLINGEN ============ -->
+<section data-tab="settings">
+ <div class="card" id="welcome" style="display:none"><h2>👋 Welkom</h2><div class="small">Vul eerst je gegevens in. Ze blijven enkel op deze gsm en worden nergens naartoe gestuurd. Lengte, geslacht en geboortejaar zijn nodig voor je BMI en je dagbudget.</div></div>
+ <div class="card">
+  <h2>👤 Mijn gegevens</h2>
+  <label>Naam</label><input id="s_name">
+  <div class="row">
+   <div><label>Geslacht</label><select id="s_sex"><option value="">–</option><option value="m">Man</option><option value="v">Vrouw</option></select></div>
+   <div><label>Geboortejaar</label><input id="s_birth" inputmode="numeric" placeholder="bv. 1970"></div>
+  </div>
+  <label>Lengte (m, bv. 1,80)</label><input id="s_h" inputmode="decimal">
+  <div class="row">
+   <div><label>Startdatum</label><input id="s_start" type="date"></div>
+   <div><label>Startgewicht (kg)</label><input id="s_sw" inputmode="decimal"></div>
+  </div>
+  <div class="row">
+   <div><label>Doelgewicht (kg)</label><input id="s_goal" inputmode="decimal"></div>
+   <div><label>Tempo (kg/week)</label><input id="s_rate" inputmode="decimal"></div>
+  </div>
+  <label>Dagelijkse beweging zonder Polar-getal</label>
+  <select id="s_act"><option value="1.2">Weinig beweging (zittend werk)</option><option value="1.375">Licht actief</option><option value="1.55">Matig actief</option></select>
+  <button class="btn" id="s_save">Bewaren</button>
+ </div>
+ <div class="card">
+  <details><summary>🍽️ Mijn producten (<span id="favN">0</span>)</summary>
+   <p class="small">Alles wat je ooit toevoegde, wordt hier onthouden zodat je het snel terugvindt, ook zonder internet.</p>
+   <ul id="favList"></ul>
+  </details>
+ </div>
+ <div class="card">
+  <details><summary>💾 Export &amp; back-up</summary>
+   <p class="small">De gegevens staan enkel op deze gsm. Wis je de browsergegevens of verlies je de gsm, dan ben je ze kwijt. Maak dus af en toe een back-up en bewaar die bv. in je mail of cloud.</p>
+   <button class="btn sec" id="exp">Kopieer voor Excel</button>
+   <button class="btn sec" id="bak">Back-up maken</button>
+   <button class="btn sec" id="res">Back-up terugzetten</button>
+   <input type="file" id="file" accept=".json,application/json" style="display:none">
+   <p class="small" id="bakInfo"></p>
+  </details>
+ </div>
+ <div class="card">
+  <details><summary>ℹ️ Hoe wordt er gerekend?</summary>
+   <div class="small">
+   <p><b>BMI</b> = gewicht ÷ lengte². Indeling volgens de WHO: &lt; 18,5 ondergewicht · 18,5–24,9 normaal · 25–29,9 overgewicht · ≥ 30 obesitas. BMI houdt geen rekening met spiermassa.</p>
+   <p><b>Rustverbruik</b> volgens de formule van Mifflin-St Jeor: 10 × kg + 6,25 × cm − 5 × leeftijd, +5 (man) of −161 (vrouw). Leeftijd = jaar van de dag − geboortejaar.</p>
+   <p><b>Dagverbruik</b>: het totaal van Polar als je dat invult; anders rustverbruik + actieve kcal van Polar; anders rustverbruik × je bewegingsfactor (1,2 / 1,375 / 1,55). Dat laatste is een ruwe schatting.</p>
+   <p><b>Dagbudget</b> = dagverbruik − tekort. Tekort = tempo × 7.700 kcal ÷ 7 (vuistregel: 1 kg lichaamsvet ≈ 7.700 kcal). Bij 0,5 kg/week is dat 550 kcal per dag.</p>
+   <p><b>Calorieën van producten.</b> De basislijst (± 180 gewone voedingsmiddelen) komt uit de Amerikaanse voedingstabel <a href="https://fdc.nal.usda.gov" target="_blank" rel="noopener">USDA FoodData Central</a> (SR Legacy, 2018, publiek domein), inclusief de portiegewichten (snee, middelgroot, eetlepel …). Amerikaanse producten kunnen wat afwijken van Belgische. Glazen en kopjes (bv. glas 200 ml) zijn vaste maten waarbij 1 ml als 1 g telt. Barcodes worden opgezocht in <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, een vrije databank die door gebruikers wordt aangevuld. Controleer bij twijfel het etiket; je kunt de kcal per 100 g altijd zelf aanpassen.</p>
+   <p><b>Alcohol-rekenhulp</b>: kcal = ml × alcohol% × 0,789 g/ml (dichtheid van alcohol) × 6,93 kcal/g (dezelfde factor als in de USDA-tabel), plus koolhydraten × 4 kcal/g als je die van het etiket invult. Zonder koolhydraten is de uitkomst een ondergrens.</p>
+   <p>Dit is een hulpmiddel om op te volgen, geen medisch advies.</p>
+   </div>
+  </details>
+ </div>
+</section>
+</main>
+
+<nav>
+ <button data-go="today"><b>🍽️</b>Vandaag</button>
+ <button data-go="weight"><b>⚖️</b>Gewicht</button>
+ <button data-go="settings"><b>⚙️</b>Instellingen</button>
+</nav>
+
+<!-- ============ TOEVOEGEN ============ -->
+<div class="sheet" id="sheet">
+ <div class="top"><button id="shBack">‹</button><h3 id="shTitle">Toevoegen</h3><button id="shClose">✕</button></div>
+ <div class="body">
+  <div id="stSearch">
+   <div class="search">
+    <input id="q" placeholder="bv. 2 boterhammen kaas" autocomplete="off" enterkeyhint="search">
+    <button class="ib" id="mic" aria-label="Inspreken">🎤</button>
+    <button class="ib" id="scanBtn" aria-label="Barcode scannen">▥</button>
+   </div>
+   <div class="queue" id="queue"></div>
+   <div class="small" id="hint" style="margin-top:6px">Typ of spreek in. Meerdere dingen? Zeg bv. "koffie met melk, 2 boterhammen met kaas en een appel".</div>
+   <div class="card" style="margin-top:10px"><h2>Resultaten</h2><ul class="res" id="local"></ul></div>
+   <button class="btn" id="online">🔎 Zoek online (Open Food Facts)</button>
+   <div class="card" style="margin-top:10px;display:none" id="onlineBox"><h2>Open Food Facts</h2><ul class="res" id="remote"></ul></div>
+   <button class="btn sec" id="alcBtn">🍺 Bier of wijn: berekenen via alcohol%</button>
+   <button class="btn sec" id="manual">✏️ Zelf kcal ingeven</button>
+  </div>
+  <div id="stPortion" style="display:none">
+   <div class="card">
+    <h2 id="pName" style="text-transform:none;letter-spacing:0;font-size:17px;color:var(--t)"></h2>
+    <div class="small" id="pBrand"></div>
+    <div id="pNameBox" style="display:none"><label>Naam</label><input id="pNameIn" placeholder="bv. Boterham met kaas"></div>
+    <div id="alcBox" style="display:none">
+     <label>Naam</label><input id="aName" placeholder="bv. Duvel">
+     <div class="row">
+      <div><label>Alcohol (% vol)</label><input id="aPct" inputmode="decimal" placeholder="bv. 8,5"></div>
+      <div><label>ml per glas/fles</label><input id="aMl" inputmode="decimal"></div>
+     </div>
+     <div class="chips" id="aChips"></div>
+     <label>Koolhydraten per 100 ml (etiket, mag leeg)</label><input id="aCarb" inputmode="decimal" placeholder="bv. 3,8">
+     <div class="small" id="aNote" style="margin-top:6px"></div>
+    </div>
+    <div id="per100Box"><label>kcal per 100 g / 100 ml</label><input id="pPer100" inputmode="decimal"></div>
+    <div id="unitBox"><label>kcal per stuk / portie</label><input id="pUnit" inputmode="decimal"></div>
+    <div id="gramBox"><label>Gram of ml per stuk</label><input id="pG" inputmode="decimal"><div class="chips" id="gChips"></div></div>
+    <label>Aantal</label>
+    <div class="stepper"><button id="nMin">−</button><input id="pN" inputmode="decimal"><button id="nPlus">＋</button></div>
+    <div class="total" id="pTot">0 kcal</div>
+    <label>Maaltijd</label><div class="chips" id="mealChips"></div>
+    <button class="btn" id="pAdd">Toevoegen</button>
+   </div>
+  </div>
+ </div>
+</div>
+<div id="scan"><video id="vid" playsinline muted></video><p>Richt de camera op de barcode</p><button class="btn sec" id="scanStop" style="width:auto;padding:12px 30px">Stoppen</button></div>
+<div class="toast" id="toast"></div>
+
+<script src="voeding.js"></script>
+<script>
+'use strict';
+const KEY='calorieteller_v1';
+const MEALS=[['ontbijt','🌅 Ontbijt'],['middag','🥪 Middag'],['avond','🍝 Avond'],['tussen','🍎 Tussendoor'],['drank','🥤 Dranken']];
+const KCAL_PER_KG=7700;
+const DAY=864e5;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=parseFloat(String(v??'').replace(/\s/g,'').replace(',','.'));return isNaN(n)?null:n};
+const f1=n=>n==null||isNaN(n)?'–':n.toLocaleString('nl-BE',{minimumFractionDigits:1,maximumFractionDigits:1});
+const f0=n=>n==null||isNaN(n)?'–':Math.round(n).toLocaleString('nl-BE');
+const cv=v=>v==null||v===''?'':String(v).replace('.',',');
+const toD=s=>new Date(s+'T12:00:00');
+const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const today=()=>iso(new Date());
+const addDays=(s,n)=>iso(new Date(toD(s).getTime()+n*DAY));
+const nice=s=>toD(s).toLocaleDateString('nl-BE',{weekday:'short',day:'numeric',month:'short'});
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('show'),2200)}
+
+/* ---------- gegevens ---------- */
+const DEF=()=>({v:1,profile:{name:'',sex:'',birth:'',h:'',start:today(),sw:'',goal:'',rate:0.5,act:1.2},weights:{},days:{},foods:{},lastBackup:null});
+let S=null;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.profile)S=DEF();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('⚠️ Opslaan mislukt')}}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+
+const P=()=>S.profile;
+const wList=()=>Object.keys(S.weights).sort().map(d=>({d,w:S.weights[d]}));
+function weightOn(d){const l=wList();let r=null;for(const e of l){if(e.d<=d)r=e.w;else break}return r??(num(P().sw)??(l[0]?l[0].w:null))}
+function lastW(){const l=wList();return l.length?l[l.length-1].w:num(P().sw)}
+const EMPTY={food:[],polTot:'',polAct:'',note:''};
+const getDay=d=>S.days[d]||EMPTY;
+const mutDay=d=>S.days[d]||(S.days[d]={food:[],polTot:'',polAct:'',note:''});
+const eaten=d=>getDay(d).food.reduce((a,f)=>a+(f.kcal||0),0);
+
+function bmi(w){const h=num(P().h);return h&&w?w/h/h:null}
+function bmiCat(b){if(b==null)return['–','#B0BEC5'];if(b<18.5)return['Ondergewicht','#1F6F8B'];if(b<25)return['Normaal gewicht','#2E7D5B'];if(b<30)return['Overgewicht','#F28C28'];return['Obesitas','#C62828']}
+
+function energy(d){
+ const p=P(),w=weightOn(d),h=num(p.h),birth=num(p.birth),rate=num(p.rate)||0.5,act=num(p.act)||1.2;
+ let bmr=null;
+ if(w&&h&&birth&&(p.sex==='m'||p.sex==='v')){const age=toD(d).getFullYear()-birth;bmr=10*w+6.25*h*100-5*age+(p.sex==='m'?5:-161)}
+ const dy=getDay(d),tot=num(dy.polTot),actv=num(dy.polAct);
+ let burn=null,how='';
+ if(tot!=null){burn=tot;how='Polar totaal'}
+ else if(actv!=null&&bmr!=null){burn=bmr+actv;how=`rust ${f0(bmr)} + Polar actief ${f0(actv)}`}
+ else if(bmr!=null){burn=bmr*act;how=`schatting: rust ${f0(bmr)} × ${cv(act)}`}
+ const deficit=rate*KCAL_PER_KG/7;
+ return{bmr,burn,how,deficit,rate,budget:burn!=null?burn-deficit:null};
+}
+
+/* ---------- navigatie ---------- */
+let tab='today',cur=today();
+function go(t){tab=t;document.querySelectorAll('section[data-tab]').forEach(s=>s.classList.toggle('on',s.dataset.tab===t));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.go===t));window.scrollTo(0,0);render()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.go));
+$('hbmi').onclick=()=>go('weight');
+$('prevDay').onclick=()=>{cur=addDays(cur,-1);render()};
+$('nextDay').onclick=()=>{if(cur<today()){cur=addDays(cur,1);render()}};
+
+const TIPS=[
+ 'Weeg je elke ochtend op hetzelfde moment: nuchter, na het toiletbezoek.',
+ 'Kijk naar het 7-daags gemiddelde, niet naar één dag. Schommelingen van 0,5–1 kg zijn vooral vocht.',
+ 'Eiwit bij elke maaltijd (eieren, yoghurt, vis, kip, peulvruchten) houdt je langer verzadigd.',
+ 'Vul de helft van je bord met groenten – veel volume, weinig calorieën.',
+ 'Drink een groot glas water vóór elke maaltijd.',
+ 'Let op vloeibare calorieën: frisdrank, fruitsap en alcohol tellen snel op.',
+ 'Plan feestdagen en etentjes bewust in – één avond maakt geen verschil, de week wel.',
+ 'Een stevige wandeling van 30 minuten per dag doet meer dan je denkt.',
+ 'Twee keer per week krachttraining helpt je spieren te behouden terwijl je afvalt.',
+ 'Slaap 7–8 uur: te weinig slaap verhoogt de honger.',
+ 'Eet trager en leg je bestek neer tussen happen – je verzadigingsgevoel heeft tijd nodig.',
+ 'Samen doen werkt: motiveer elkaar en vier elke kilo!',
+ 'Zout eten of veel koolhydraten geeft de dag erna vaak een vocht-bult. Niet panikeren.',
+ '0,5 kg per week is een prima tempo – dat hou je ook na het regime vol.',
+ 'Noteer je eten meteen, niet ’s avonds – dan vergeet je de koekjes niet.'
+];
+
+/* ---------- render ---------- */
+function render(){
+ renderHeader();
+ if(tab==='today')renderToday();
+ if(tab==='weight')renderWeight();
+ if(tab==='settings')renderSettings();
+}
+function renderHeader(){
+ $('hname').textContent=P().name?'Hallo '+P().name:'Calorieteller';
+ const b=bmi(lastW()),[c,col]=bmiCat(b);
+ $('hbmi').innerHTML=`<i style="background:${col}"></i><span>BMI ${b?f1(b):'–'}${b?' · '+c:''}</span>`;
+}
+
+function renderToday(){
+ const t=today();
+ $('dayLbl').innerHTML=(cur===t?'Vandaag':cur===addDays(t,-1)?'Gisteren':nice(cur))+`<small>${toD(cur).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</small>`;
+ $('nextDay').style.visibility=cur<t?'visible':'hidden';
+ const first=[...Object.keys(S.days),...Object.keys(S.weights)].sort()[0];
+ const lb=S.lastBackup?toD(S.lastBackup):null,hasData=first&&Date.now()-toD(first)>7*DAY;
+ $('bakWarn').style.display=hasData&&(!lb||Date.now()-lb>14*DAY)?'block':'none';
+ // balans
+ const e=energy(cur),ate=eaten(cur);
+ let html='';
+ if(e.budget==null){
+  html=`<div class="big">${f0(ate)} kcal</div><div class="small">gegeten. Vul geslacht, geboortejaar, lengte en gewicht in bij ⚙️ Instellingen om je dagbudget te berekenen.</div>`;
+ }else{
+  const left=e.budget-ate,over=left<0;
+  html=`<div class="big" style="color:${over?'var(--r)':'var(--g)'}">${over?f0(-left)+' kcal te veel':'Nog '+f0(left)+' kcal'}</div>
+  <div class="bar"><div class="${over?'over':''}" style="width:${Math.min(100,ate/e.budget*100)}%"></div></div>
+  <div class="stats three" style="margin-top:10px">
+   <div class="stat"><b>${f0(ate)}</b><span>Gegeten</span></div>
+   <div class="stat"><b>${f0(e.burn)}</b><span>Verbruik</span></div>
+   <div class="stat"><b>${f0(e.budget)}</b><span>Budget</span></div>
+  </div>
+  <div class="small" style="margin-top:8px">Budget = verbruik (${e.how}) − ${f0(e.deficit)} kcal voor ${cv(e.rate)} kg/week.</div>`;
+  const minK=P().sex==='v'?1200:1500;
+  if(e.budget<minK)html+=`<div class="small" style="color:var(--o);margin-top:6px">⚠️ Je budget ligt onder ${f0(minK)} kcal, het minimum dat vaak aangeraden wordt zonder medische begeleiding. Overweeg een trager tempo.</div>`;
+ }
+ $('bal').innerHTML=html;
+ // maaltijden
+ const dy=getDay(cur);
+ $('meals').innerHTML=MEALS.map(([k,lbl])=>{
+  const items=dy.food.map((f,i)=>({f,i})).filter(x=>x.f.meal===k),sum=items.reduce((a,x)=>a+x.f.kcal,0);
+  if(!items.length)return `<div class="card meal empty"><h2>${lbl}<button class="lnk" data-add="${k}">＋ toevoegen</button></h2></div>`;
+  return `<div class="card meal"><h2>${lbl}<span>${f0(sum)+' kcal'}</span></h2>
+   <ul>${items.map(({f,i})=>`<li><span class="nm" data-edit="${i}">${esc(f.name)}<small>${esc(amountTxt(f))}</small></span><span class="v">${f0(f.kcal)}</span><button class="x" data-del="${i}" aria-label="Verwijderen">✕</button></li>`).join('')}</ul>
+   <button class="lnk" data-add="${k}">＋ toevoegen</button></div>`}).join('');
+ $('meals').querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openSheet(b.dataset.add));
+ $('meals').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const f=getDay(cur).food[b.dataset.del];if(confirm(f.name+' verwijderen?')){mutDay(cur).food.splice(b.dataset.del,1);save();render()}});
+ $('meals').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editItem(+b.dataset.edit));
+ // activiteit
+ $('polTot').value=cv(dy.polTot);$('polAct').value=cv(dy.polAct);$('note').value=dy.note||'';
+ week();
+ $('tip').textContent=TIPS[Math.floor(Date.now()/DAY)%TIPS.length];
+}
+function amountTxt(f){
+ if(f.unitKcal!=null)return `${cv(f.n)} × ${f0(f.unitKcal)} kcal`;
+ const amt=f.pl?(/\(/.test(f.pl)?f.pl:f.pl+' ('+cv(f.g)+' g)'):cv(f.g)+' g';
+ return `${f.n!=1?cv(f.n)+' × ':''}${amt} · ${f0(f.per100)} kcal/100 g`;
+}
+['polTot','polAct','note'].forEach(id=>$(id).addEventListener('change',()=>{
+ const d=mutDay(cur);
+ if(id==='note')d.note=$('note').value.trim();
+ else{const v=num($(id).value);d[id]=v==null?'':v;if(v!=null){const o=id==='polTot'?'polAct':'polTot';d[o]='';}}
+ save();renderToday();toast('Bewaard ✓')}));
+
+function week(){
+ const W=360,H=170,L=34,B=22,T=8,days=[...Array(7)].map((_,i)=>addDays(cur,i-6));
+ const data=days.map(d=>({d,a:eaten(d),b:energy(d).budget}));
+ const mx=Math.max(500,...data.map(x=>Math.max(x.a,x.b||0)))*1.1,y=v=>T+(1-v/mx)*(H-T-B),bw=(W-L-6)/7;
+ let g='';const st=mx>3000?1000:500;
+ for(let v=0;v<=mx;v+=st)g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#ECEFF1"/><text x="${L-4}" y="${y(v)+4}" font-size="10" fill="#90A4AE" text-anchor="end">${f0(v)}</text>`;
+ data.forEach((x,i)=>{const cx=L+6+i*bw,over=x.b!=null&&x.a>x.b;
+  if(x.a>0)g+=`<rect x="${cx+bw*.18}" y="${y(x.a)}" width="${bw*.64}" height="${y(0)-y(x.a)}" rx="4" fill="${over?'#C62828':'#2E7D5B'}"/>`;
+  if(x.b!=null)g+=`<line x1="${cx+bw*.08}" x2="${cx+bw*.92}" y1="${y(x.b)}" y2="${y(x.b)}" stroke="#263238" stroke-width="2.5"/>`;
+  g+=`<text x="${cx+bw/2}" y="${H-6}" font-size="10" fill="${x.d===cur?'#263238':'#90A4AE'}" font-weight="${x.d===cur?700:400}" text-anchor="middle">${toD(x.d).toLocaleDateString('nl-BE',{weekday:'short'})}</text>`});
+ $('week').innerHTML=g;
+}
+
+/* ---------- gewicht ---------- */
+function avg7(list,i){const t=toD(list[i].d)-6*DAY;const s=list.filter((e,j)=>j<=i&&toD(e.d)>=t);return s.reduce((a,e)=>a+e.w,0)/s.length}
+function renderWeight(){
+ if(!$('wd').value)$('wd').value=today();
+ const p=P(),list=wList(),sw=num(p.sw)??(list[0]?list[0].w:null),goal=num(p.goal),rate=num(p.rate)||0.5,h=num(p.h);
+ const last=list.length?list[list.length-1].w:null,a7=list.length?avg7(list,list.length-1):null;
+ const lost=sw!=null&&last!=null?sw-last:null,togo=goal!=null&&last!=null?last-goal:null;
+ const prog=sw!=null&&goal!=null&&lost!=null&&sw>goal?Math.max(0,Math.min(1,lost/(sw-goal))):0;
+ const gd=sw!=null&&goal!=null?new Date(toD(p.start).getTime()+Math.max(0,sw-goal)/rate*7*DAY):null;
+ // BMI-kaart
+ const w=last??sw,b=bmi(w),[cat,col]=bmiCat(b);
+ if(b==null)$('bmiBox').innerHTML='<div class="small">Vul je lengte in bij ⚙️ Instellingen en geef een gewicht in.</div>';
+ else{
+  const pos=v=>Math.max(0,Math.min(100,(v-15)/25*100));
+  const bg=goal&&h?goal/h/h:null,[gc]=bmiCat(bg);
+  $('bmiBox').innerHTML=`<div class="big" style="color:${col}">${f1(b)} <span style="font-size:18px">${cat}</span></div>
+  <div class="bmiscale"><b style="left:${pos(b)}%"></b>${[18.5,25,30].map(v=>`<span style="left:${pos(v)}%">${cv(v)}</span>`).join('')}</div>
+  <div class="small">Normaal gewicht voor ${cv(h)} m: <b>${f1(18.5*h*h)} – ${f1(24.9*h*h)} kg</b>.${bg?` Bij je doel van ${f1(goal)} kg wordt je BMI ${f1(bg)} (${gc.toLowerCase()}).`:''}</div>`;
+ }
+ $('wstats').innerHTML=[
+  ['Laatste gewicht',f1(last)+' kg'],['7-daags gemiddelde',f1(a7)+' kg'],
+  ['Verloren',lost==null?'–':(lost>=0?'−':'+')+f1(Math.abs(lost))+' kg'],
+  ['Nog te gaan',togo==null?'–':f1(Math.max(0,togo))+' kg'],
+  ['Startgewicht',f1(sw)+' kg'],
+  ['Verwachte doeldatum',gd?gd.toLocaleDateString('nl-BE',{day:'numeric',month:'short',year:'numeric'}):'–']
+ ].map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+ $('wbar').style.width=(prog*100)+'%';
+ $('wbartxt').textContent=goal==null||sw==null?'Vul startgewicht en doel in bij ⚙️ Instellingen.':`${Math.round(prog*100)}% van ${f1(sw)} → ${f1(goal)} kg`;
+ const rev=list.slice().reverse();
+ $('wlist').innerHTML=rev.slice(0,60).map((e,i)=>{const pr=rev[i+1],df=pr?e.w-pr.w:0;
+  return `<li><span class="nm">${nice(e.d)}</span><span><span class="v">${f1(e.w)} kg</span> <span class="small ${df>0?'up':df<0?'down':''}">${pr?(df>0?'+':'')+f1(df):''}</span></span><button class="x" data-d="${e.d}" aria-label="Verwijderen">✕</button></li>`}).join('')||'<li class="small">Nog geen metingen.</li>';
+ $('wlist').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(confirm('Meting van '+nice(b.dataset.d)+' verwijderen?')){delete S.weights[b.dataset.d];save();render()}});
+ chart(p,list,sw,goal,rate);
+}
+function chart(p,list,sw,goal,rate){
+ const W=360,H=220,L=32,R=10,T=10,B=26,s=toD(p.start||today()).getTime();
+ let end=s+28*DAY,ge=null;
+ if(sw!=null&&goal!=null){ge=s+Math.max(0,sw-goal)/rate*7*DAY;end=Math.max(end,ge)}
+ list.forEach(e=>end=Math.max(end,toD(e.d).getTime()));
+ const st0=Math.min(s,...list.map(e=>toD(e.d).getTime()));
+ const vals=list.map(e=>e.w);if(sw!=null)vals.push(sw);if(goal!=null)vals.push(goal);
+ if(!vals.length){$('chart').innerHTML='<text x="180" y="110" text-anchor="middle" fill="#78909C" font-size="13">Nog geen gegevens</text>';return}
+ const lo=Math.floor(Math.min(...vals)-1),hi=Math.ceil(Math.max(...vals)+1);
+ const x=t=>L+(t-st0)/(end-st0)*(W-L-R),y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+ let g='';const st=Math.max(1,Math.ceil((hi-lo)/6));
+ for(let v=lo;v<=hi;v+=st)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#ECEFF1"/><text x="${L-4}" y="${y(v)+4}" font-size="10" fill="#90A4AE" text-anchor="end">${v}</text>`;
+ const span=(end-st0)/DAY,wk=Math.max(1,Math.ceil(span/7/6));
+ for(let d=0;d<=span;d+=7*wk){const t=st0+d*DAY;g+=`<text x="${x(t)}" y="${H-8}" font-size="10" fill="#90A4AE" text-anchor="middle">${new Date(t).toLocaleDateString('nl-BE',{day:'numeric',month:'numeric'})}</text>`}
+ if(ge!=null)g+=`<polyline fill="none" stroke="#F28C28" stroke-width="2" stroke-dasharray="6 4" points="${x(s)},${y(sw)} ${x(ge)},${y(goal)} ${x(end)},${y(goal)}"/>`;
+ if(list.length){
+  const X=e=>x(toD(e.d).getTime());
+  g+=`<polyline fill="none" stroke="#2E7D5B" stroke-opacity=".35" stroke-width="1.5" points="${list.map(e=>X(e)+','+y(e.w)).join(' ')}"/>`;
+  g+=list.map(e=>`<circle cx="${X(e)}" cy="${y(e.w)}" r="3" fill="#2E7D5B"/>`).join('');
+  g+=`<polyline fill="none" stroke="#1F6F8B" stroke-width="2.5" points="${list.map((e,i)=>X(e)+','+y(avg7(list,i))).join(' ')}"/>`;
+ }
+ $('chart').innerHTML=g;
+}
+$('wsave').onclick=()=>{const w=num($('w').value),d=$('wd').value;
+ if(!d||w==null||w<30||w>250){toast('Geef een geldig gewicht in');return}
+ if(d>today()){toast('Datum ligt in de toekomst');return}
+ const had=S.weights[d]!=null;S.weights[d]=Math.round(w*10)/10;
+ if(!num(P().sw)){P().sw=S.weights[d];if(!P().start||d<P().start)P().start=d}
+ save();$('w').value='';$('w').blur();render();toast(had?'Aangepast ✓':'Opgeslagen ✓')};
+
+/* ---------- instellingen ---------- */
+function renderSettings(){
+ const p=P();
+ $('welcome').style.display=p.name&&p.h&&p.sex&&p.birth?'none':'block';
+ $('s_name').value=p.name||'';$('s_sex').value=p.sex||'';$('s_birth').value=p.birth||'';$('s_h').value=cv(p.h);
+ $('s_start').value=p.start||'';$('s_sw').value=cv(p.sw);$('s_goal').value=cv(p.goal);$('s_rate').value=cv(p.rate);
+ $('s_act').value=String(p.act||1.2);
+ const favs=Object.entries(S.foods).sort((a,b)=>a[1].name.localeCompare(b[1].name,'nl'));
+ $('favN').textContent=favs.length;
+ $('favList').innerHTML=favs.map(([k,f])=>`<li><span class="nm">${esc(f.name)}<small>${esc(f.brand||'')} ${f.unitKcal!=null?f0(f.unitKcal)+' kcal/stuk':f0(f.per100)+' kcal/100 g'}</small></span><button class="x" data-k="${esc(k)}" aria-label="Verwijderen">✕</button></li>`).join('')||'<li class="small">Nog geen producten.</li>';
+ $('favList').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(confirm(S.foods[b.dataset.k].name+' uit de lijst halen?')){delete S.foods[b.dataset.k];save();renderSettings()}});
+ $('bakInfo').textContent=S.lastBackup?'Laatste back-up: '+nice(S.lastBackup):'Nog geen back-up gemaakt.';
+}
+$('s_save').onclick=()=>{const p=P();
+ p.name=$('s_name').value.trim();p.sex=$('s_sex').value;
+ const by=num($('s_birth').value);p.birth=by&&by>1900&&by<2020?Math.round(by):'';
+ let h=num($('s_h').value);if(h&&h>3)h=h/100;p.h=h&&h>1&&h<2.5?h:'';
+ p.start=$('s_start').value||p.start;p.sw=num($('s_sw').value)??'';p.goal=num($('s_goal').value)??'';
+ const r=num($('s_rate').value);p.rate=r&&r>0&&r<=1.5?r:0.5;p.act=num($('s_act').value)||1.2;
+ if(p.sw!==''&&!Object.keys(S.weights).length&&p.start)S.weights[p.start]=p.sw;
+ save();render();toast('Bewaard ✓');
+ if(p.name&&p.h&&p.sex&&p.birth)setTimeout(()=>go('today'),600)};
+
+$('exp').onclick=async()=>{
+ const dates=[...new Set([...Object.keys(S.weights),...Object.keys(S.days)])].sort();
+ const txt='Datum\tGewicht (kg)\tBMI\tGegeten (kcal)\tVerbruik (kcal)\tBudget (kcal)\tActiviteit\n'+dates.map(d=>{const e=energy(d),w=S.weights[d],dy=getDay(d),a=eaten(d);
+  return [toD(d).toLocaleDateString('nl-BE',{day:'2-digit',month:'2-digit',year:'numeric'}),w!=null?cv(w):'',w!=null&&bmi(w)?f1(bmi(w)):'',a?Math.round(a):'',e.burn!=null&&(a||dy.polTot!==''||dy.polAct!=='')?Math.round(e.burn):'',e.budget!=null&&a?Math.round(e.budget):'',(dy.note||'').replace(/\t/g,' ')].join('\t')}).join('\n');
+ try{await navigator.clipboard.writeText(txt);toast('Gekopieerd – plak in Excel')}catch(e){prompt('Kopieer deze tekst:',txt)}};
+$('bak').onclick=async()=>{
+ const name='calorieteller-'+(norm(P().name).replace(/[^a-z0-9]/g,'')||'backup')+'-'+today()+'.json';
+ const blob=new Blob([JSON.stringify(S)],{type:'application/json'});
+ const done=()=>{S.lastBackup=today();save();render()};
+ try{const file=new File([blob],name,{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Back-up calorieteller'});done();return}}catch(e){if(e&&e.name==='AbortError')return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();done();toast('Back-up gedownload ✓')};
+$('res').onclick=()=>$('file').click();
+$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const d=JSON.parse(r.result);
+  if(d.profile&&d.weights){if(!confirm('Alle huidige gegevens vervangen door deze back-up?'))return;S=Object.assign(DEF(),d)}
+  else if(d.people){ // back-up van de oude gewichtsapp
+   const ks=Object.keys(d.people);let k=ks[0];
+   if(ks.length>1){const a=prompt('Van wie zijn de gegevens?\n'+ks.map((x,i)=>(i+1)+'. '+d.people[x].name).join('\n'),'1');k=ks[(num(a)||1)-1];if(!k)return}
+   const o=d.people[k],p=P();Object.assign(S.weights,o.entries||{});
+   if(!p.name)p.name=o.name||'';if(!p.sw&&o.sw!=='')p.sw=o.sw;if(!p.goal&&o.goal!=='')p.goal=o.goal;if(o.start)p.start=o.start;if(o.rate)p.rate=o.rate;if(!p.h&&o.h)p.h=o.h;
+  }else throw 0;
+  save();render();toast('Back-up teruggezet ✓')}catch(x){toast('Ongeldig bestand')}e.target.value=''};r.readAsText(f)};
+
+/* ---------- toevoegen ---------- */
+let SH={};
+const defMeal=()=>{const h=new Date().getHours()+new Date().getMinutes()/60;return h<10.5?'ontbijt':h<14.5?'middag':h>=17&&h<21?'avond':'tussen'};
+function openSheet(meal,keepQueue){
+ SH={meal:meal||defMeal(),queue:[],prod:null,editIdx:null};
+ $('q').value='';showStep('search');renderQueue();renderLocal();$('onlineBox').style.display='none';
+ if(!$('sheet').classList.contains('on')){$('sheet').classList.add('on');history.pushState({sheet:1},'')}
+ setTimeout(()=>$('q').focus(),50);
+}
+function closeSheet(){stopMic();if($('sheet').classList.contains('on')){$('sheet').classList.remove('on');if(history.state&&history.state.sheet)history.back()}render()}
+window.addEventListener('popstate',()=>{if($('sheet').classList.contains('on')){stopMic();$('sheet').classList.remove('on');render()}});
+$('addFood').onclick=()=>openSheet();
+$('shClose').onclick=closeSheet;
+$('shBack').onclick=()=>{if($('stPortion').style.display!=='none'&&SH.editIdx==null)showStep('search');else closeSheet()};
+function showStep(s){$('stSearch').style.display=s==='search'?'block':'none';$('stPortion').style.display=s==='portion'?'block':'none';$('shTitle').textContent=s==='search'?'Toevoegen':SH.editIdx!=null?'Aanpassen':'Hoeveel?'}
+
+const NW={een:1,'één':1,eén:1,twee:2,drie:3,vier:4,vijf:5,zes:6,zeven:7,acht:8,negen:9,tien:10,half:.5,halve:.5,anderhalf:1.5,anderhalve:1.5};
+function parseQty(s){
+ s=String(s||'').trim();let n=null,grams=null,m;
+ if((m=s.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|cl|dl|l|liter)\.?\s+(?:van\s+)?(.+)$/i))){const u=m[2].toLowerCase();grams=num(m[1])*({cl:10,dl:100,l:1000,liter:1000}[u]||1);s=m[3]}
+ else if((m=s.match(/^(\d+(?:[.,]\d+)?|[a-zéë]+)\s*(?:x\s+|\s+)(.+)$/i))){const v=num(m[1])??NW[m[1].toLowerCase()];if(v!=null&&v>0&&v<50){n=v;s=m[2]}}
+ return{n,grams,term:s.trim()};
+}
+// eenvoudige Nederlandse stam: meervoud/verkleinwoord eraf, dubbele medeklinker inkorten (boterhammen → boterham)
+const stem=w=>{let s=w.replace(/(tjes|jes|en|s)$/,'');if(s.length<3)s=w;if(/([^aeiou])\1$/.test(s))s=s.slice(0,-1);return s};
+const tokens=t=>norm(t).split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!['met','van','een','het','zonder','wat','stuk','stukje','beetje','glas','kop','tas','kopje'].includes(w)).map(stem);
+const score=(tk,hay)=>tk.reduce((a,w,i)=>a+(hay.includes(w)?(i===0?1.5:1):0),0);
+function renderQueue(){$('queue').innerHTML=SH.queue.length?'<span class="small">Nog te doen:</span>'+SH.queue.map((q,i)=>`<button class="chip" data-i="${i}">${esc(q)}</button>`).join(''):'';
+ $('queue').querySelectorAll('button').forEach(b=>b.onclick=()=>{const q=SH.queue.splice(+b.dataset.i,1)[0];setQuery(q)})}
+function setQuery(q){$('q').value=q;$('onlineBox').style.display='none';renderQueue();const n=renderLocal();if(!n&&navigator.onLine)offSearch()}
+/* ingebouwde lijst (voeding.js, USDA) + extra zoekwoorden */
+const ALIAS={'Wit brood':'boterham sandwich toast','Bruin/volkorenbrood':'boterham bruin grijs','Meergranenbrood':'boterham','Stokbrood':'baguette','Pistolet':'broodje','Pitabrood':'pita','Koffiekoek (met fruit)':'koffiekoek','Havermout (droog)':'havervlokken','Havermoutpap (met water)':'pap','Granola / krokante muesli':'muesli','Halvarine (40%)':'smeer','Minarine (60%)':'smeer becel','Chocopasta (hazelnoot)':'choco nutella','Confituur':'jam','Hesp':'ham','Gouda (kaas)':'kaas jonge','Emmentaler (kaas)':'kaas','Brie':'kaas','Camembert':'kaas','Mozzarella':'kaas','Parmezaan':'kaas','Feta':'kaas','Roomkaas':'kaas philadelphia','Cottage cheese':'kaas','Ricotta':'kaas','Ei, gekookt':'eitje','Spiegelei':'eitje','Roerei':'eitje','Room (vloeibaar)':'kookroom','Koffiemelk / koffieroom':'melk','Vanille-ijs':'ijsje roomijs','Aardappelen, gekookt':'patatten','Frieten (frituur)':'friet frietjes patat','Ovenfrieten':'friet frietjes','Rijst wit, gekookt':'rijst','Pasta, gekookt':'spaghetti macaroni penne','Rundergehakt, gebakken':'gehakt','Varkensgehakt, gebakken':'gehakt','Gehaktballetjes':'balletjes','Steak':'biefstuk','Spek, gebakken':'spekjes bacon','Braadworst':'worst','Knakworst':'worst frankfurter','Zalm, gebakken':'vis','Kabeljauw':'vis','Garnalen':'grijze','Mosselen':'moules','Vissticks':'vis','Spaghetti bolognese':'spaghetti','Pizza (kaas)':'pizza',"Pinda's":'nootjes','Chips':'chipjes','Melkchocolade':'chocolade','Pure chocolade':'chocolade','Boterkoekjes':'koekje','Chocoladekoekjes':'koekje','Gemberkoekjes':'koekje','Cake':'cake','Gummisnoep':'snoep','Mueslireep':'reep','Koffie, zwart':'koffie','Cola zero/light':'cola','Frisdrank sinaas':'fanta sinas','Sinaasappelsap':'appelsiensap fruitsap','Appelsap':'fruitsap','Bier (pils)':'pintje','Rode wijn':'wijn','Witte wijn':'wijn','Sterkedrank':'jenever whisky gin rum vodka','Mayonaise':'mayo','Vinaigrette':'dressing','Tomatensaus':'saus','Sinaasappel':'appelsien','Mandarijn':'clementine','Aardbeien':'aardbei','Druiven':'druif'};
+const BASEL=(typeof BASE!=='undefined'?BASE:[]).map(([name,per100,portions,id])=>({key:'usda:'+id,name,per100,portions,src:'USDA',hay:norm(name+' '+(ALIAS[name]||''))}));
+function renderLocal(){
+ const {term}=parseQty($('q').value),tk=tokens(term);
+ let favs=Object.entries(S.foods).map(([k,f])=>({k,f,hay:norm(f.name+' '+(f.brand||'')+' '+(ALIAS[f.name]||''))}));
+ if(tk.length)favs=favs.map(x=>({...x,score:score(tk,x.hay)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||(b.f.uses||0)-(a.f.uses||0));
+ else favs.sort((a,b)=>(b.f.last||0)-(a.f.last||0));
+ favs=favs.slice(0,25);
+ const own=new Set(favs.map(x=>x.k));
+ let base=[];
+ if(tk.length)base=BASEL.filter(b=>!own.has(b.key)).map(b=>({b,score:score(tk,b.hay),start:b.hay.startsWith(tk[0])})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||b.start-a.start||a.b.name.localeCompare(b.b.name,'nl')).slice(0,25);
+ const row=(k,name,sub,right,attr)=>`<li ${attr}="${esc(k)}"><span class="nm">${esc(name)}<small>${esc(sub)}</small></span><span class="v small">${right}</span></li>`;
+ $('local').innerHTML=favs.map(x=>row(x.k,x.f.name,x.f.brand||(x.k.startsWith('usda:')?'USDA':''),x.f.unitKcal!=null?f0(x.f.unitKcal)+' kcal/st':f0(x.f.per100)+' /100 g','data-k')).join('')
+  +base.map(({b})=>row(b.key,b.name,'Basislijst (USDA)',f0(b.per100)+' /100 g','data-b')).join('')
+  ||`<li class="small">${tk.length?'Niets gevonden. Probeer een ander woord, scan de barcode of geef de kcal zelf in.':'Typ wat je gegeten of gedronken hebt. Producten die je al eens toevoegde, staan hier bovenaan.'}</li>`;
+ $('local').querySelectorAll('li[data-k]').forEach(li=>li.onclick=()=>pick({...S.foods[li.dataset.k],key:li.dataset.k}));
+ $('local').querySelectorAll('li[data-b]').forEach(li=>li.onclick=()=>pick(BASEL.find(b=>b.key===li.dataset.b)));
+ return favs.length+base.length;
+}
+$('q').addEventListener('input',renderLocal);
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('q').blur();offSearch()}});
+$('online').onclick=()=>offSearch();
+
+/* Open Food Facts */
+const OFF='https://world.openfoodfacts.org';
+const FIELDS='code,product_name,product_name_nl,product_name_fr,product_name_en,brands,nutriments,serving_quantity';
+function mapOff(p){const n=p.nutriments||{};let k=num(n['energy-kcal_100g']);if(k==null&&num(n.energy_100g)!=null)k=num(n.energy_100g)/4.184;
+ return{key:'off:'+p.code,code:p.code,name:(p.product_name_nl||p.product_name||p.product_name_fr||p.product_name_en||'(naamloos product)').trim(),brand:(p.brands||'').split(',')[0].trim(),per100:k!=null?Math.round(k):null,serving:num(p.serving_quantity)}}
+async function getJSON(u){const c=new AbortController(),t=setTimeout(()=>c.abort(),15000);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw new Error(r.status);return await r.json()}finally{clearTimeout(t)}}
+let lastRes=[];
+async function offSearch(){
+ const {term}=parseQty($('q').value);if(!term){toast('Typ eerst wat je zoekt');return}
+ $('onlineBox').style.display='block';$('remote').innerHTML='<li class="spin">Zoeken…</li>';
+ try{
+  if(/^\d{8,14}$/.test(term)){await lookupCode(term);return}
+  const u=OFF+'/cgi/search.pl?'+new URLSearchParams({search_terms:term,search_simple:1,action:'process',json:1,page_size:30,sort_by:'unique_scans_n',fields:FIELDS});
+  const d=await getJSON(u);
+  lastRes=(d.products||[]).map(mapOff).filter(p=>p.name).sort((a,b)=>(a.per100==null)-(b.per100==null));
+  $('remote').innerHTML=lastRes.map((p,i)=>`<li data-i="${i}" class="${p.per100==null?'nodata':''}"><span class="nm">${esc(p.name)}<small>${esc(p.brand)}</small></span><span class="v small">${p.per100!=null?f0(p.per100)+' /100 g':'geen kcal'}</span></li>`).join('')||'<li class="small">Niets gevonden. Probeer een ander woord, of geef de kcal zelf in.</li>';
+  $('remote').querySelectorAll('li[data-i]').forEach(li=>li.onclick=()=>pick(lastRes[li.dataset.i]));
+ }catch(e){$('remote').innerHTML=`<li class="small">${navigator.onLine?'Open Food Facts laat zoeken op naam momenteel niet toe (te druk of beperkt voor apps).':'Geen internet.'} Wat wel werkt: de <b>barcode</b> scannen of de cijfers eronder intikken, of de kcal zelf ingeven (zie etiket).</li>`}
+}
+async function lookupCode(code){
+ $('onlineBox').style.display='block';$('remote').innerHTML='<li class="spin">Barcode opzoeken…</li>';
+ try{const d=await getJSON(`${OFF}/api/v2/product/${encodeURIComponent(code)}.json?fields=${FIELDS}`);
+  if(d.status!==1||!d.product){$('remote').innerHTML='<li class="small">Barcode niet gevonden in Open Food Facts. Geef de kcal zelf in (zie etiket).</li>';return}
+  pick(mapOff({...d.product,code}));
+ }catch(e){$('remote').innerHTML='<li class="small">Opzoeken mislukt. Controleer je internet.</li>'}
+}
+
+/* portie */
+/* alcohol: kcal = ml × %vol × 0,789 g/ml (dichtheid alcohol) × 6,93 kcal/g (USDA-factor) + koolhydraten × 4 kcal/g */
+const ALC_DENS=0.789,ALC_KCAL=6.93;
+function alcPer(){const pct=num($('aPct').value),ml=num($('aMl').value),carb=num($('aCarb').value);
+ if(pct==null||ml==null||pct<0||pct>80||ml<=0)return null;
+ return ml*pct/100*ALC_DENS*ALC_KCAL+(carb!=null?carb*ml/100*4:0)}
+function pickAlc(){
+ SH.prod={};SH.alc=true;SH.unit=false;SH.meal='drank';
+ const pq=parseQty($('q').value);
+ $('pName').textContent='Alcoholische drank';$('pBrand').textContent='Berekend uit het alcoholpercentage op het etiket.';
+ $('aName').value=pq.term?pq.term.charAt(0).toUpperCase()+pq.term.slice(1):'';$('aPct').value='';$('aCarb').value='';$('aMl').value=pq.grams?cv(pq.grams):'330';$('pN').value=cv(pq.n||1);
+ $('aChips').innerHTML=[[250,'glas 25 cl'],[330,'flesje 33 cl'],[750,'fles 75 cl'],[150,'wijnglas 15 cl'],[40,'borrel 4 cl']].map(([v,l])=>`<button class="chip" data-ml="${v}">${l}</button>`).join('');
+ $('aChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('aMl').value=b.dataset.ml;calc()});
+ ['pNameBox','per100Box','unitBox','gramBox'].forEach(id=>$(id).style.display='none');$('alcBox').style.display='block';
+ renderMealChips();$('pAdd').textContent='Toevoegen';showStep('portion');calc();
+ setTimeout(()=>$($('aName').value?'aPct':'aName').focus(),50);
+}
+$('alcBtn').onclick=pickAlc;
+['aPct','aMl','aCarb'].forEach(id=>$(id).addEventListener('input',calc));
+
+function pick(prod,item){
+ SH.prod={...prod};SH.alc=false;$('alcBox').style.display='none';
+ const pq=item?null:parseQty($('q').value);
+ const por=prod.portions||[];
+ let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&pq.grams)||prod.g||(por[0]&&por[0][1])||prod.serving||null;
+ // geen gekende portie: start bij 1 × 100 g en laat het gewicht schatten
+ if(g==null){g=100;if(!item)n=1}
+ if(!item&&pq&&pq.grams)n=1;
+ const manual=!prod.name;
+ $('pName').textContent=prod.name||'Zelf ingeven';$('pBrand').textContent=prod.brand||'';
+ $('pNameBox').style.display=manual?'block':'none';$('pNameIn').value=manual?(pq?pq.term:''):'';
+ const unit=prod.unitKcal!=null||manual;SH.unit=unit;
+ $('per100Box').style.display=unit?'none':'block';$('gramBox').style.display=unit?'none':'block';$('unitBox').style.display=unit?'block':'none';
+ $('pPer100').value=cv(prod.per100);$('pUnit').value=cv(prod.unitKcal);$('pG').value=cv(Math.round(g*10)/10);$('pN').value=cv(n);
+ const opts=por.map(([l,gr])=>[gr,`${l} · ${cv(gr)} g`]);
+ if(prod.serving&&prod.serving!==100)opts.push([prod.serving,`portie (etiket) · ${cv(prod.serving)} g`]);
+ if(opts.length)opts.push([100,'100 g']);else[50,100,150,200,250].forEach(v=>opts.push([v,v+' g']));
+ $('gChips').innerHTML=opts.map(([v,l])=>`<button class="chip" data-g="${v}">${l}</button>`).join('');
+ $('gChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('pG').value=cv(b.dataset.g);calc()});
+ renderMealChips();
+ $('pAdd').textContent=SH.editIdx!=null?'Bewaren':'Toevoegen';
+ showStep('portion');calc();
+ if(manual)setTimeout(()=>$(($('pNameIn').value?'pUnit':'pNameIn')).focus(),50);
+ else if(prod.per100==null)setTimeout(()=>$('pPer100').focus(),50);
+}
+function renderMealChips(){$('mealChips').innerHTML=MEALS.map(([k,l])=>`<button class="chip ${k===SH.meal?'on':''}" data-m="${k}">${l}</button>`).join('');
+ $('mealChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{SH.meal=b.dataset.m;renderMealChips()})}
+function calc(){const n=num($('pN').value)||0;let k=null;
+ if(SH.alc){const per=alcPer();k=per!=null?n*per:null;
+  const carb=num($('aCarb').value),pct=num($('aPct').value),ml=num($('aMl').value);
+  $('aNote').innerHTML=per==null?'Vul het alcoholpercentage en de hoeveelheid in.':
+   `Per glas: ${f0(ml*pct/100*ALC_DENS)} g alcohol = ${f0(ml*pct/100*ALC_DENS*ALC_KCAL)} kcal`+(carb!=null?` + ${f0(carb*ml/100*4)} kcal uit koolhydraten.`:'.<br><b>Suikers/koolhydraten niet meegeteld</b> – de echte waarde ligt hoger. Staan ze op het etiket, vul ze dan in.')}
+ else if(SH.unit){const u=num($('pUnit').value);k=u!=null?n*u:null}else{const p=num($('pPer100').value),g=num($('pG').value);k=p!=null&&g!=null?n*g*p/100:null}
+ $('pTot').textContent=k==null?'– kcal':f0(k)+' kcal';$('pAdd').disabled=k==null||k<0;return k}
+['pPer100','pUnit','pG','pN'].forEach(id=>$(id).addEventListener('input',calc));
+$('nMin').onclick=()=>{const n=num($('pN').value)||1;$('pN').value=cv(n>1?n-1:Math.max(.5,n-.5));calc()};
+$('nPlus').onclick=()=>{const n=num($('pN').value)||0;$('pN').value=cv(n<1?n+.5:n+1);calc()};
+$('manual').onclick=()=>pick({});
+$('pAdd').onclick=()=>{
+ const k=calc();if(k==null)return;const pr=SH.prod;
+ let name=SH.alc?$('aName').value.trim():(pr.name||$('pNameIn').value.trim());name=name.charAt(0).toUpperCase()+name.slice(1);if(!name){toast('Geef een naam in');$(SH.alc?'aName':'pNameIn').focus();return}
+ if(SH.alc){const ml=num($('aMl').value);name=`${name} (${cv(num($('aPct').value))}%, ${ml%10?cv(ml)+' ml':cv(ml/10)+' cl'}${num($('aCarb').value)==null?', zonder suikers':''})`}
+ const n=num($('pN').value)||1;
+ const it={name,brand:pr.brand||'',meal:SH.meal,n,kcal:Math.round(k),key:pr.key||'own:'+norm(name)};
+ if(SH.alc){it.unitKcal=Math.round(alcPer());it.kcal=Math.round(n*it.unitKcal)}else if(SH.unit)it.unitKcal=num($('pUnit').value);else{it.g=num($('pG').value);it.per100=num($('pPer100').value);const pl=(pr.portions||[]).find(p=>p[1]===it.g);if(pl)it.pl=pl[0]}
+ const d=mutDay(cur);
+ if(SH.editIdx!=null)d.food[SH.editIdx]=it;else d.food.push(it);
+ const old=S.foods[it.key]||{};
+ S.foods[it.key]={name,brand:it.brand,code:pr.code||old.code||'',per100:it.per100??null,unitKcal:it.unitKcal??null,g:it.g??old.g??null,serving:pr.serving??old.serving??null,portions:pr.portions??old.portions??null,uses:(old.uses||0)+(SH.editIdx!=null?0:1),last:Date.now()};
+ if(it.unitKcal==null)delete S.foods[it.key].unitKcal;
+ save();toast(`${name}: ${f0(it.kcal)} kcal ✓`);
+ if(SH.editIdx==null&&SH.queue.length){const q=SH.queue.shift();showStep('search');setQuery(q)}
+ else closeSheet();
+};
+function editItem(i){const f=getDay(cur).food[i];if(!f)return;
+ openSheet(f.meal);SH.editIdx=i;SH.meal=f.meal;
+ const fav=S.foods[f.key]||{};
+ pick({key:f.key,name:f.name,brand:f.brand,per100:f.per100??null,unitKcal:f.unitKcal??null,serving:fav.serving,portions:fav.portions,code:fav.code},f);
+}
+
+/* spraak */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
+if(!SR)$('mic').style.display='none';
+function stopMic(){if(rec){try{rec.stop()}catch(e){}}}
+$('mic').onclick=()=>{
+ if(rec){stopMic();return}
+ rec=new SR();rec.lang='nl-BE';rec.interimResults=true;rec.continuous=false;let txt='';
+ rec.onresult=e=>{txt='';for(const r of e.results)txt+=r[0].transcript;$('q').value=txt;renderLocal()};
+ rec.onerror=e=>{toast(e.error==='not-allowed'?'Geen toegang tot de microfoon':e.error==='no-speech'?'Niets gehoord':'Spraak lukt niet ('+e.error+')')};
+ rec.onend=()=>{rec=null;$('mic').classList.remove('rec');if(txt.trim())handleSpoken(txt)};
+ try{rec.start();$('mic').classList.add('rec')}catch(e){rec=null;toast('Spraak lukt niet')}
+};
+function handleSpoken(t){
+ const parts=[];
+ t.split(/\s*(?:,|;|\.|\ben daarna\b|\ben ook\b|\bplus\b|\ben\b)\s*/i).map(s=>s.trim()).filter(s=>s.length>1).forEach(s=>{
+  // "2 boterhammen met kaas" → "2 boterhammen" + "2 kaas"
+  const [a,...rest]=s.split(/\s+met\s+/i),n=parseQty(a).n;parts.push(a);
+  rest.forEach(r=>parts.push(n&&n!==1&&parseQty(r).n==null&&parseQty(r).grams==null?cv(n)+' '+r:r));
+ });
+ SH.queue=parts.slice(1);setQuery(parts[0]||t);
+}
+
+/* barcode */
+let stream=null,scanning=false;
+if(!('BarcodeDetector' in window)||!navigator.mediaDevices)$('scanBtn').style.display='none';
+$('scanBtn').onclick=async()=>{
+ try{
+  const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  const v=$('vid');v.srcObject=stream;await v.play();$('scan').classList.add('on');scanning=true;
+  const loop=async()=>{if(!scanning)return;try{const c=await det.detect(v);if(c.length){const code=c[0].rawValue;stopScan();$('q').value=code;lookupCode(code);return}}catch(e){}setTimeout(loop,250)};loop();
+ }catch(e){stopScan();toast('Camera niet beschikbaar. Typ de cijfers onder de barcode.')}
+};
+function stopScan(){scanning=false;$('scan').classList.remove('on');if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+$('scanStop').onclick=stopScan;
+
+/* start */
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+let shown=today();// app bleef open over middernacht: spring naar de nieuwe dag
+document.addEventListener('visibilitychange',()=>{if(document.hidden)return;const t=today();if(t!==shown){if(cur===shown)cur=t;shown=t;$('wd').value=t;if(!$('sheet').classList.contains('on'))render()}});
+$('wd').value=today();
+const p0=P();go(p0.name&&p0.h&&p0.sex&&p0.birth?'today':'settings');
+</script>
+</body>
+</html>
