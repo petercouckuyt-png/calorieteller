@@ -521,7 +521,7 @@ function renderSettings(){
  $('favN').textContent=favs.length;
  $('favList').innerHTML=favs.map(([k,f])=>`<li><span class="nm">${esc(f.name)}<small>${esc(f.brand||'')} ${f.unitKcal!=null?f0(f.unitKcal)+' kcal/stuk':f0(f.per100)+' kcal/100 g'}</small></span><button class="x" data-k="${esc(k)}" aria-label="Verwijderen">✕</button></li>`).join('')||'<li class="small">Nog geen producten.</li>';
  $('favList').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(confirm(S.foods[b.dataset.k].name+' uit de lijst halen?')){delete S.foods[b.dataset.k];save();renderSettings()}});
- $('srv').value=S.srv||'';
+ $('srv').value=S.srv||DEFAULT_SRV;
  $('polStatus').textContent=S.polar?`Gekoppeld sinds ${nice(S.polar.since)}.${S.polar.last?' Laatst opgehaald: '+new Date(S.polar.last).toLocaleString('nl-BE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'.':''}`:'Niet gekoppeld. Vul het adres van de tussenserver in en koppel met je eigen Polar-account.';
  $('polLink').textContent=S.polar?'Opnieuw koppelen':'Koppel met Polar';$('polUnlink').style.display=S.polar?'block':'none';
  $('bakInfo').textContent=S.lastBackup?'Laatste back-up: '+nice(S.lastBackup):'Nog geen back-up gemaakt.';
@@ -843,7 +843,8 @@ $('scanStop').onclick=stopScan;
 const SPORT={RUNNING:'Lopen',WALKING:'Wandelen',CYCLING:'Fietsen',ROAD_BIKING:'Wielrennen',MOUNTAIN_BIKING:'Mountainbike',SWIMMING:'Zwemmen',STRENGTH_TRAINING:'Krachttraining',HIKING:'Wandeltocht',NORDIC_WALKING:'Nordic walking',INDOOR_CYCLING:'Indoorfietsen',OTHER:'Andere'};
 const sportNl=s=>SPORT[String(s||'').toUpperCase()]||String(s||'Training').toLowerCase().replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
 const isoMin=s=>{const m=/PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(s||'');return m?Math.round((+m[1]||0)*60+(+m[2]||0)+(+m[3]||0)/60):null};
-const srvUrl=()=>(S.srv||'').replace(/\/+$/,'');
+const DEFAULT_SRV='https://calorieteller.peter-couckuyt.workers.dev';
+const srvUrl=()=>(S.srv||DEFAULT_SRV).replace(/\/+$/,'');
 function renderPolarDay(dy){
  $('polBox').style.display=S.polar?'block':'none';if(!S.polar)return;
  const pa=dy.polar,ex=dy.ex||[];
@@ -877,8 +878,12 @@ async function polarSync(manual){
 }
 $('polSync').onclick=()=>polarSync(true);
 $('polLink').onclick=()=>{
- const s=$('srv').value.trim().replace(/\/+$/,'');
- if(!/^https:\/\/[^/]+$/.test(s)){toast('Vul het adres van de tussenserver in (https://…)');$('srv').focus();return}
+ // vergevingsgezind: hoofdletters, spaties, zonder https:// of met een pad erachter
+ let s=$('srv').value.trim().toLowerCase().replace(/\s+/g,'');
+ if(s&&!/^https?:\/\//.test(s))s='https://'+s;
+ s=s.replace(/^http:/,'https:').replace(/^(https:\/\/[^/]+).*$/,'$1');
+ if(!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}$/.test(s)){toast('Controleer het adres van de tussenserver');return}
+ $('srv').value=s;
  S.srv=s;save();
  location.href=s+'/polar/start?return='+encodeURIComponent(location.origin+location.pathname);
 };
