@@ -129,7 +129,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
   </div>
  </div>
  <div class="card"><h2>Laatste 7 dagen</h2><svg id="week" viewBox="0 0 360 170"></svg>
-  <div class="legend"><span><i style="background:var(--g);height:10px"></i>Gegeten</span><span><i style="background:var(--r);height:10px"></i>Boven budget</span><span><i style="background:var(--t)"></i>Budget</span></div></div>
+  <div class="legend"><span><i style="background:var(--g);height:10px"></i>Gegeten</span><span><i style="background:var(--r);height:10px"></i>Te veel gegeten</span><span><i style="background:var(--t)"></i>Maximum</span></div></div>
  <div class="card tip"><h2>💡 Tip van de dag</h2><div id="tip"></div></div>
 </section>
 
@@ -158,7 +158,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
 
 <!-- ============ INSTELLINGEN ============ -->
 <section data-tab="settings">
- <div class="card" id="welcome" style="display:none"><h2>👋 Welkom</h2><div class="small">Vul eerst je gegevens in. Ze blijven enkel op deze gsm en worden nergens naartoe gestuurd. Lengte, geslacht en geboortejaar zijn nodig voor je BMI en je dagbudget.</div></div>
+ <div class="card" id="welcome" style="display:none"><h2>👋 Welkom</h2><div class="small">Vul eerst je gegevens in. Ze blijven enkel op deze gsm en worden nergens naartoe gestuurd. Lengte, geslacht en geboortejaar zijn nodig voor je BMI en om te berekenen hoeveel je per dag mag eten.</div></div>
  <div class="card">
   <h2>👤 Mijn gegevens</h2>
   <label>Naam</label><input id="s_name">
@@ -208,7 +208,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
    <p><b>BMI</b> = gewicht ÷ lengte². Indeling volgens de WHO: &lt; 18,5 ondergewicht · 18,5–24,9 normaal · 25–29,9 overgewicht · ≥ 30 obesitas. BMI houdt geen rekening met spiermassa.</p>
    <p><b>Rustverbruik</b> volgens de formule van Mifflin-St Jeor: 10 × kg + 6,25 × cm − 5 × leeftijd, +5 (man) of −161 (vrouw). Leeftijd = jaar van de dag − geboortejaar.</p>
    <p><b>Dagverbruik</b>: het totaal van Polar als je dat invult; anders rustverbruik + actieve kcal van Polar; anders rustverbruik × je bewegingsfactor (1,2 / 1,375 / 1,55). Dat laatste is een ruwe schatting.</p>
-   <p><b>Dagbudget</b> = dagverbruik − tekort. Tekort = tempo × 7.700 kcal ÷ 7 (vuistregel: 1 kg lichaamsvet ≈ 7.700 kcal). Bij 0,5 kg/week is dat 550 kcal per dag.</p>
+   <p><b>Maximum vandaag</b> (het totaal dat je vandaag mag eten) = dagverbruik − tekort. Wat je daarvan nog niet gegeten hebt, staat bovenaan als "Nog … kcal". Tekort = tempo × 7.700 kcal ÷ 7 (vuistregel: 1 kg lichaamsvet ≈ 7.700 kcal). Bij 0,5 kg/week is dat 550 kcal per dag.</p>
    <p><b>Calorieën van producten.</b> De basislijst (± 180 gewone voedingsmiddelen) komt uit de Amerikaanse voedingstabel <a href="https://fdc.nal.usda.gov" target="_blank" rel="noopener">USDA FoodData Central</a> (SR Legacy, 2018, publiek domein), inclusief de portiegewichten (snee, middelgroot, eetlepel …). Amerikaanse producten kunnen wat afwijken van Belgische. Glazen en kopjes (bv. glas 200 ml) zijn vaste maten waarbij 1 ml als 1 g telt. Barcodes worden opgezocht in <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, een vrije databank die door gebruikers wordt aangevuld. Controleer bij twijfel het etiket; je kunt de kcal per 100 g altijd zelf aanpassen.</p>
    <p><b>Alcohol-rekenhulp</b>: kcal = ml × alcohol% × 0,789 g/ml (dichtheid van alcohol) × 6,93 kcal/g (dezelfde factor als in de USDA-tabel), plus koolhydraten × 4 kcal/g als je die van het etiket invult. Zonder koolhydraten is de uitkomst een ondergrens.</p>
    <p>Dit is een hulpmiddel om op te volgen, geen medisch advies.</p>
@@ -389,20 +389,21 @@ function renderToday(){
  const e=energy(cur),ate=eaten(cur);
  let html='';
  if(e.budget==null){
-  html=`<div class="big">${f0(ate)} kcal</div><div class="small">gegeten. Vul geslacht, geboortejaar, lengte en gewicht in bij ⚙️ Instellingen om je dagbudget te berekenen.</div>`;
+  html=`<div class="big">${f0(ate)} kcal</div><div class="small">gegeten. Vul geslacht, geboortejaar, lengte en gewicht in bij ⚙️ Instellingen om te berekenen hoeveel je mag eten.</div>`;
  }else{
   const left=e.budget-ate,over=left<0;
   html=`<div class="big" style="color:${over?'var(--r)':'var(--g)'}">${over?f0(-left)+' kcal te veel':'Nog '+f0(left)+' kcal'}</div>
+  <div class="small">${over?'gegeten vandaag':'mag je vandaag nog eten'}</div>
   <div class="bar"><div class="${over?'over':''}" style="width:${Math.min(100,ate/e.budget*100)}%"></div></div>
   <div class="stats three" style="margin-top:10px">
    <div class="stat"><b>${f0(ate)}</b><span>Gegeten</span></div>
    <div class="stat"><b>${f0(e.burn)}</b><span>Verbruik</span></div>
-   <div class="stat"><b>${f0(e.budget)}</b><span>Budget</span></div>
+   <div class="stat"><b>${f0(e.budget)}</b><span>Maximum vandaag</span></div>
   </div>
-  <div class="small" style="margin-top:8px">Budget = verbruik (${e.how}) − ${f0(e.deficit)} kcal voor ${cv(e.rate)} kg/week.</div>`;
+  <div class="small" style="margin-top:8px">Om ${cv(e.rate)} kg per week af te vallen, eet je ${f0(e.deficit)} kcal minder dan je verbruikt (${e.how}).</div>`;
   const minK=P().sex==='v'?1200:1500;
-  if(e.partial)html+=`<div class="small" style="margin-top:6px">Je budget groeit nog mee met wat je vandaag beweegt.</div>`;
-  else if(e.budget<minK)html+=`<div class="small" style="color:var(--o);margin-top:6px">⚠️ Je budget ligt onder ${f0(minK)} kcal, het minimum dat vaak aangeraden wordt zonder medische begeleiding. Overweeg een trager tempo.</div>`;
+  if(e.partial)html+=`<div class="small" style="margin-top:6px">Je maximum groeit nog mee met wat je vandaag beweegt.</div>`;
+  else if(e.budget<minK)html+=`<div class="small" style="color:var(--o);margin-top:6px">⚠️ Je maximum ligt onder ${f0(minK)} kcal, het minimum dat vaak aangeraden wordt zonder medische begeleiding. Overweeg een trager tempo.</div>`;
  }
  $('bal').innerHTML=html;
  // maaltijden
@@ -538,7 +539,7 @@ $('s_save').onclick=()=>{const p=P();
 
 $('exp').onclick=async()=>{
  const dates=[...new Set([...Object.keys(S.weights),...Object.keys(S.days)])].sort();
- const txt='Datum\tGewicht (kg)\tBMI\tGegeten (kcal)\tVerbruik (kcal)\tBudget (kcal)\tActiviteit\n'+dates.map(d=>{const e=energy(d),w=S.weights[d],dy=getDay(d),a=eaten(d);
+ const txt='Datum\tGewicht (kg)\tBMI\tGegeten (kcal)\tVerbruik (kcal)\tMaximum (kcal)\tActiviteit\n'+dates.map(d=>{const e=energy(d),w=S.weights[d],dy=getDay(d),a=eaten(d);
   return [toD(d).toLocaleDateString('nl-BE',{day:'2-digit',month:'2-digit',year:'numeric'}),w!=null?cv(w):'',w!=null&&bmi(w)?f1(bmi(w)):'',a?Math.round(a):'',e.burn!=null&&(a||dy.polTot!==''||dy.polAct!=='')?Math.round(e.burn):'',e.budget!=null&&a?Math.round(e.budget):'',(dy.note||'').replace(/\t/g,' ')].join('\t')}).join('\n');
  try{await navigator.clipboard.writeText(txt);toast('Gekopieerd – plak in Excel')}catch(e){prompt('Kopieer deze tekst:',txt)}};
 $('bak').onclick=async()=>{
