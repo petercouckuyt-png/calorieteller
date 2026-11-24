@@ -204,6 +204,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
    </div>
   </details>
  </div>
+ <p class="small" style="text-align:center;margin:18px 0 6px">Door Peter Couckuyt</p>
 </section>
 </main>
 
@@ -224,12 +225,20 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
     <button class="ib" id="scanBtn" aria-label="Barcode scannen">▥</button>
    </div>
    <div class="queue" id="queue"></div>
-   <div class="small" id="hint" style="margin-top:6px">Typ of spreek in. Meerdere dingen? Zeg bv. "koffie met melk, 2 boterhammen met kaas en een appel".</div>
+   <div class="small" id="hint" style="margin-top:6px">Druk op 🎤 en zeg alles in één keer, bv. "koffie met melk, 2 boterhammen met kaas en een appel". De app vult het zelf in; jij controleert.</div>
+   <button class="btn" id="autoBtn" style="display:none">⚡ Automatisch invullen</button>
    <div class="card" style="margin-top:10px"><h2>Resultaten</h2><ul class="res" id="local"></ul></div>
    <button class="btn" id="online">🔎 Zoek online (Open Food Facts)</button>
    <div class="card" style="margin-top:10px;display:none" id="onlineBox"><h2>Open Food Facts</h2><ul class="res" id="remote"></ul></div>
    <button class="btn sec" id="alcBtn">🍺 Bier of wijn: berekenen via alcohol%</button>
    <button class="btn sec" id="manual">✏️ Zelf kcal ingeven</button>
+  </div>
+  <div id="stReview" style="display:none">
+   <div class="card"><h2>Gevonden<span id="rvTot" style="color:var(--g);font-size:15px;text-transform:none"></span></h2><ul id="rvList"></ul>
+    <div class="small" style="margin-top:6px">Tik op een regel om de hoeveelheid of het product aan te passen.</div></div>
+   <label>Maaltijd</label><div class="chips" id="rvMeals"></div>
+   <button class="btn" id="rvAdd">Alles toevoegen</button>
+   <button class="btn sec" id="rvMore">🎤 Nog iets inspreken of typen</button>
   </div>
   <div id="stPortion" style="display:none">
    <div class="card">
@@ -254,6 +263,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
     <div class="total" id="pTot">0 kcal</div>
     <label>Maaltijd</label><div class="chips" id="mealChips"></div>
     <button class="btn" id="pAdd">Toevoegen</button>
+    <button class="btn sec" id="pOther" style="display:none">🔁 Ander product kiezen</button>
    </div>
   </div>
  </div>
@@ -535,8 +545,8 @@ $('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileRe
 let SH={};
 const defMeal=()=>{const h=new Date().getHours()+new Date().getMinutes()/60;return h<10.5?'ontbijt':h<14.5?'middag':h>=17&&h<21?'avond':'tussen'};
 function openSheet(meal,keepQueue){
- SH={meal:meal||defMeal(),queue:[],prod:null,editIdx:null};
- $('q').value='';showStep('search');renderQueue();renderLocal();$('onlineBox').style.display='none';
+ SH={meal:meal||defMeal(),queue:[],prod:null,editIdx:null,review:[],rvIdx:null};
+ $('q').value='';$('autoBtn').style.display='none';showStep('search');renderQueue();renderLocal();$('onlineBox').style.display='none';
  if(!$('sheet').classList.contains('on')){$('sheet').classList.add('on');history.pushState({sheet:1},'')}
  setTimeout(()=>$('q').focus(),50);
 }
@@ -544,8 +554,14 @@ function closeSheet(){stopMic();if($('sheet').classList.contains('on')){$('sheet
 window.addEventListener('popstate',()=>{if($('sheet').classList.contains('on')){stopMic();$('sheet').classList.remove('on');render()}});
 $('addFood').onclick=()=>openSheet();
 $('shClose').onclick=closeSheet;
-$('shBack').onclick=()=>{if($('stPortion').style.display!=='none'&&SH.editIdx==null)showStep('search');else closeSheet()};
-function showStep(s){$('stSearch').style.display=s==='search'?'block':'none';$('stPortion').style.display=s==='portion'?'block':'none';$('shTitle').textContent=s==='search'?'Toevoegen':SH.editIdx!=null?'Aanpassen':'Hoeveel?'}
+const stepNow=()=>['search','review','portion'].find(s=>$('st'+s.charAt(0).toUpperCase()+s.slice(1)).style.display!=='none');
+$('shBack').onclick=()=>{const s=stepNow();
+ if(SH.rvIdx!=null&&s!=='review'){SH.rvIdx=null;showStep('review');renderReview()}
+ else if(s==='portion'&&SH.editIdx==null)showStep(SH.review.length?'review':'search');
+ else if(s==='search'&&SH.review.length)showStep('review');
+ else closeSheet()};
+function showStep(s){$('stSearch').style.display=s==='search'?'block':'none';$('stReview').style.display=s==='review'?'block':'none';$('stPortion').style.display=s==='portion'?'block':'none';
+ $('shTitle').textContent=s==='search'?'Toevoegen':s==='review'?'Controleren':SH.editIdx!=null||SH.rvIdx!=null?'Aanpassen':'Hoeveel?'}
 
 const NW={een:1,'één':1,eén:1,twee:2,drie:3,vier:4,vijf:5,zes:6,zeven:7,acht:8,negen:9,tien:10,half:.5,halve:.5,anderhalf:1.5,anderhalve:1.5};
 function parseQty(s){
@@ -581,8 +597,88 @@ function renderLocal(){
  $('local').querySelectorAll('li[data-b]').forEach(li=>li.onclick=()=>pick(BASEL.find(b=>b.key===li.dataset.b)));
  return favs.length+base.length;
 }
-$('q').addEventListener('input',renderLocal);
-$('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('q').blur();offSearch()}});
+$('q').addEventListener('input',()=>{renderLocal();$('autoBtn').style.display=$('q').value.trim()&&SH.rvIdx==null?'block':'none'});
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('q').blur();const t=$('q').value.trim();if(/^\d{8,14}$/.test(t)||SH.rvIdx!=null)offSearch();else if(t)autoFill(t)}});
+$('autoBtn').onclick=()=>{const t=$('q').value.trim();if(t)autoFill(t)};
+
+/* ---------- automatisch invullen ---------- */
+// voorkeur bij een algemeen woord ("kaas", "melk" …); wat je zelf al eens koos, wint altijd
+const PREF0={kaas:'Emmentaler (kaas)',melk:'Halfvolle melk',boterham:'Bruin/volkorenbrood',brood:'Bruin/volkorenbrood',sandwich:'Wit brood',wijn:'Rode wijn',koffie:'Koffie, zwart',bier:'Bier (pils)',pintje:'Bier (pils)',pint:'Bier (pils)',eitje:'Ei, gekookt',ei:'Ei, gekookt',friet:'Frieten (frituur)',frietje:'Frieten (frituur)',rijst:'Rijst wit, gekookt',pasta:'Pasta, gekookt',spaghetti:'Spaghetti bolognese',chocolade:'Melkchocolade',choco:'Chocopasta (hazelnoot)',koek:'Boterkoekjes',koekje:'Boterkoekjes',yoghurt:'Yoghurt natuur (vol)',water:'Water',thee:'Thee',cola:'Cola',boter:'Boter',ham:'Hesp',aardappel:'Aardappelen, gekookt',patat:'Aardappelen, gekookt',gehakt:'Rundergehakt, gebakken',worst:'Braadworst',vis:'Kabeljauw',noot:'Amandelen',sap:'Sinaasappelsap',fruitsap:'Sinaasappelsap'};
+const PREF=Object.fromEntries(Object.entries(PREF0).map(([k,v])=>[stem(k),v]));
+// standaardportie: liefst "middelgroot", anders snee/stuk, anders de eerste
+const defPortion=por=>(por||[]).find(p=>/middelgroot/.test(p[0]))||(por||[]).find(p=>/^1 (snee|stuk)$/.test(p[0]))||(por||[])[0];
+const words=h=>h.split(/[^a-z0-9]+/).filter(Boolean);
+function score2(tk,hay,name,hint){
+ const ws=words(hay);let s=0;
+ tk.forEach((w,i)=>{const wt=i===0?1.5:1;
+  if(ws.includes(w))s+=2.2*wt;else if(ws.some(x=>x.startsWith(w)))s+=2*wt;else if(hay.includes(w))s+=wt;
+  if(PREF[w]===name)s+=1});
+ (hint||[]).forEach(w=>{if(hay.includes(w))s+=1.5});
+ return s}
+function candidates(text,hint){
+ const tk=tokens(parseQty(text).term);if(!tk.length)return[];
+ const out=[];
+ Object.entries(S.foods).forEach(([k,f])=>{const sc=score2(tk,norm(f.name+' '+(f.brand||'')+' '+(ALIAS[f.name]||'')),f.name,hint);if(sc>0)out.push({prod:{...f,key:k},score:sc+1+Math.min(1,(f.uses||0)/5)})});
+ const own=new Set(out.map(o=>o.prod.key));
+ BASEL.forEach(b=>{if(own.has(b.key))return;const sc=score2(tk,b.hay,b.name,hint);if(sc>0)out.push({prod:b,score:sc})});
+ return out.sort((a,b)=>b.score-a.score||a.prod.name.length-b.prod.name.length);
+}
+// maak een dag-item uit product + hoeveelheid (zelfde vorm als bij handmatig toevoegen)
+function makeItem(pr,n,g,meal){
+ const it={name:pr.name,brand:pr.brand||'',meal,n,key:pr.key};
+ if(pr.unitKcal!=null){it.unitKcal=pr.unitKcal;it.kcal=Math.round(n*pr.unitKcal);return it}
+ it.g=g;it.per100=pr.per100;it.kcal=Math.round(n*g*(pr.per100||0)/100);
+ const pl=(pr.portions||[]).find(p=>p[1]===g);if(pl)it.pl=pl[0];
+ return it}
+function splitSpoken(t){
+ const parts=[];
+ t.split(/\s*(?:,|;|\.|\ben daarna\b|\ben ook\b|\bplus\b|\ben\b)\s*/i).map(s=>s.trim()).filter(s=>s.length>1).forEach(s=>{
+  // "2 boterhammen met kaas" → "2 boterhammen" + "2 kaas" (met hint "boterham")
+  const [a,...rest]=s.split(/\s+met\s+/i),n=parseQty(a).n;parts.push({text:a});
+  rest.forEach(r=>parts.push({text:n&&n!==1&&parseQty(r).n==null&&parseQty(r).grams==null?cv(n)+' '+r:r,hint:tokens(parseQty(a).term)}));
+ });
+ return parts}
+function autoFill(t){
+ stopMic();
+ const rows=splitSpoken(t).map(p=>{
+  const c=candidates(p.text,p.hint),best=c[0],q=parseQty(p.text);
+  if(!best||best.score<2)return{text:p.text,it:null,alts:c.slice(0,5).map(x=>x.prod)};
+  const pr=best.prod,por=pr.portions||[];
+  const dp=defPortion(por);
+  let n=q.n||1,g=q.grams||pr.g||(dp&&dp[1])||pr.serving||null,flag=null;
+  if(q.grams)n=1;
+  if(pr.unitKcal==null&&g==null){g=100;flag='gewicht geschat (100 g) – tik om aan te passen'}
+  return{text:p.text,prod:pr,it:makeItem(pr,n,g,SH.meal),flag};
+ });
+ SH.review=SH.review.concat(rows);$('q').value='';$('autoBtn').style.display='none';
+ showStep('review');renderReview();
+}
+function renderReview(){
+ const rv=SH.review,tot=rv.reduce((a,r)=>a+(r.it?r.it.kcal:0),0);
+ $('rvTot').textContent=rv.some(r=>r.it)?f0(tot)+' kcal':'';
+ $('rvList').innerHTML=rv.map((r,i)=>r.it?
+  `<li data-r="${i}"><span class="nm">${esc(r.it.name)}<small>${esc(amountTxt(r.it))}</small>${r.flag?`<small style="color:var(--o)">⚠️ ${esc(r.flag)}</small>`:''}<small>“${esc(r.text)}”</small></span><span class="v">${f0(r.it.kcal)}</span><button class="x" data-x="${i}" aria-label="Verwijderen">✕</button></li>`:
+  `<li data-r="${i}"><span class="nm" style="color:var(--o)">❓ “${esc(r.text)}”<small>Niet gevonden – tik om te zoeken of zelf in te geven</small></span><button class="x" data-x="${i}" aria-label="Verwijderen">✕</button></li>`).join('')||'<li class="small">Niets meer in de lijst.</li>';
+ $('rvList').querySelectorAll('[data-x]').forEach(b=>b.onclick=e=>{e.stopPropagation();SH.review.splice(+b.dataset.x,1);renderReview()});
+ $('rvList').querySelectorAll('li[data-r]').forEach(li=>li.onclick=()=>{const i=+li.dataset.r,r=SH.review[i];SH.rvIdx=i;
+  if(r.it){$('q').value=r.text;pick(r.prod,r.it)}else{showStep('search');$('q').value=r.text;$('autoBtn').style.display='none';renderLocal()}});
+ $('rvMeals').innerHTML=MEALS.map(([k,l])=>`<button class="chip ${k===SH.meal?'on':''}" data-m="${k}">${l}</button>`).join('');
+ $('rvMeals').querySelectorAll('button').forEach(b=>b.onclick=()=>{SH.meal=b.dataset.m;renderReview()});
+ const ok=rv.filter(r=>r.it).length;$('rvAdd').disabled=!ok;$('rvAdd').textContent=ok?`Alles toevoegen (${ok})`:'Alles toevoegen';
+}
+function saveFav(it,pr,isNew){
+ const old=S.foods[it.key]||{};
+ S.foods[it.key]={name:it.name,brand:it.brand,code:pr.code||old.code||'',per100:it.per100??null,unitKcal:it.unitKcal??null,g:it.g??old.g??null,serving:pr.serving??old.serving??null,portions:pr.portions??old.portions??null,uses:(old.uses||0)+(isNew?1:0),last:Date.now()};
+ if(it.unitKcal==null)delete S.foods[it.key].unitKcal;
+}
+$('rvAdd').onclick=()=>{
+ const d=mutDay(cur),ok=SH.review.filter(r=>r.it);if(!ok.length)return;
+ ok.forEach(r=>{r.it.meal=SH.meal;d.food.push(r.it);saveFav(r.it,r.prod||{},true)});
+ const tot=ok.reduce((a,r)=>a+r.it.kcal,0),skipped=SH.review.length-ok.length;
+ save();toast(`${ok.length} toegevoegd: ${f0(tot)} kcal ✓${skipped?` (${skipped} niet gevonden)`:''}`);closeSheet();
+};
+$('rvMore').onclick=()=>{SH.rvIdx=null;showStep('search');$('q').value='';$('autoBtn').style.display='none';renderLocal();if(SR)$('mic').click();else $('q').focus()};
+$('pOther').onclick=()=>{const r=SH.review[SH.rvIdx];showStep('search');$('q').value=r?r.text:'';$('autoBtn').style.display='none';renderLocal()};
 $('online').onclick=()=>offSearch();
 
 /* Open Food Facts */
@@ -626,7 +722,7 @@ function pickAlc(){
  $('aChips').innerHTML=[[250,'glas 25 cl'],[330,'flesje 33 cl'],[750,'fles 75 cl'],[150,'wijnglas 15 cl'],[40,'borrel 4 cl']].map(([v,l])=>`<button class="chip" data-ml="${v}">${l}</button>`).join('');
  $('aChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('aMl').value=b.dataset.ml;calc()});
  ['pNameBox','per100Box','unitBox','gramBox'].forEach(id=>$(id).style.display='none');$('alcBox').style.display='block';
- renderMealChips();$('pAdd').textContent='Toevoegen';showStep('portion');calc();
+ renderMealChips();$('pAdd').textContent=SH.rvIdx!=null?'Bewaren':'Toevoegen';$('pOther').style.display=SH.rvIdx!=null?'block':'none';showStep('portion');calc();
  setTimeout(()=>$($('aName').value?'aPct':'aName').focus(),50);
 }
 $('alcBtn').onclick=pickAlc;
@@ -636,7 +732,8 @@ function pick(prod,item){
  SH.prod={...prod};SH.alc=false;$('alcBox').style.display='none';
  const pq=item?null:parseQty($('q').value);
  const por=prod.portions||[];
- let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&pq.grams)||prod.g||(por[0]&&por[0][1])||prod.serving||null;
+ const dp=defPortion(por);
+ let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&pq.grams)||prod.g||(dp&&dp[1])||prod.serving||null;
  // geen gekende portie: start bij 1 × 100 g en laat het gewicht schatten
  if(g==null){g=100;if(!item)n=1}
  if(!item&&pq&&pq.grams)n=1;
@@ -652,7 +749,8 @@ function pick(prod,item){
  $('gChips').innerHTML=opts.map(([v,l])=>`<button class="chip" data-g="${v}">${l}</button>`).join('');
  $('gChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('pG').value=cv(b.dataset.g);calc()});
  renderMealChips();
- $('pAdd').textContent=SH.editIdx!=null?'Bewaren':'Toevoegen';
+ $('pAdd').textContent=SH.editIdx!=null||SH.rvIdx!=null?'Bewaren':'Toevoegen';
+ $('pOther').style.display=SH.rvIdx!=null?'block':'none';
  showStep('portion');calc();
  if(manual)setTimeout(()=>$(($('pNameIn').value?'pUnit':'pNameIn')).focus(),50);
  else if(prod.per100==null)setTimeout(()=>$('pPer100').focus(),50);
@@ -677,11 +775,12 @@ $('pAdd').onclick=()=>{
  const n=num($('pN').value)||1;
  const it={name,brand:pr.brand||'',meal:SH.meal,n,kcal:Math.round(k),key:pr.key||'own:'+norm(name)};
  if(SH.alc){it.unitKcal=Math.round(alcPer());it.kcal=Math.round(n*it.unitKcal)}else if(SH.unit)it.unitKcal=num($('pUnit').value);else{it.g=num($('pG').value);it.per100=num($('pPer100').value);const pl=(pr.portions||[]).find(p=>p[1]===it.g);if(pl)it.pl=pl[0]}
+ if(SH.rvIdx!=null){ // terug naar de controlelijst
+  SH.review[SH.rvIdx]={text:SH.review[SH.rvIdx].text,prod:{...pr,name,key:it.key,unitKcal:it.unitKcal??pr.unitKcal},it,flag:null};
+  SH.rvIdx=null;showStep('review');renderReview();return}
  const d=mutDay(cur);
  if(SH.editIdx!=null)d.food[SH.editIdx]=it;else d.food.push(it);
- const old=S.foods[it.key]||{};
- S.foods[it.key]={name,brand:it.brand,code:pr.code||old.code||'',per100:it.per100??null,unitKcal:it.unitKcal??null,g:it.g??old.g??null,serving:pr.serving??old.serving??null,portions:pr.portions??old.portions??null,uses:(old.uses||0)+(SH.editIdx!=null?0:1),last:Date.now()};
- if(it.unitKcal==null)delete S.foods[it.key].unitKcal;
+ saveFav(it,pr,SH.editIdx==null);
  save();toast(`${name}: ${f0(it.kcal)} kcal ✓`);
  if(SH.editIdx==null&&SH.queue.length){const q=SH.queue.shift();showStep('search');setQuery(q)}
  else closeSheet();
@@ -704,15 +803,8 @@ $('mic').onclick=()=>{
  rec.onend=()=>{rec=null;$('mic').classList.remove('rec');if(txt.trim())handleSpoken(txt)};
  try{rec.start();$('mic').classList.add('rec')}catch(e){rec=null;toast('Spraak lukt niet')}
 };
-function handleSpoken(t){
- const parts=[];
- t.split(/\s*(?:,|;|\.|\ben daarna\b|\ben ook\b|\bplus\b|\ben\b)\s*/i).map(s=>s.trim()).filter(s=>s.length>1).forEach(s=>{
-  // "2 boterhammen met kaas" → "2 boterhammen" + "2 kaas"
-  const [a,...rest]=s.split(/\s+met\s+/i),n=parseQty(a).n;parts.push(a);
-  rest.forEach(r=>parts.push(n&&n!==1&&parseQty(r).n==null&&parseQty(r).grams==null?cv(n)+' '+r:r));
- });
- SH.queue=parts.slice(1);setQuery(parts[0]||t);
-}
+// spraak: alles meteen automatisch invullen; bij aanpassen van één regel enkel het zoekveld vullen
+function handleSpoken(t){if(SH.rvIdx!=null){$('q').value=t;renderLocal()}else autoFill(t)}
 
 /* barcode */
 let stream=null,scanning=false;

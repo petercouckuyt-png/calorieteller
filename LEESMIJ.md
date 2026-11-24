@@ -32,7 +32,7 @@ Open de app daarna altijd via het icoon. Op een iPhone kan Safari de gegevens va
 ## Dagelijks gebruik
 
 - **Gewicht:** elke ochtend in het tabblad ⚖️ Gewicht. Je BMI staat altijd bovenaan.
-- **Eten:** via *＋ Eten of drinken toevoegen*. Je kunt typen of de 🎤 gebruiken (of de microfoon van je toetsenbord). Zeg bv. "2 boterhammen met kaas, een koffie met melk en een appel": de app maakt daar een lijstje van en jij kiest telkens het juiste product en de hoeveelheid.
+- **Eten:** via *＋ Eten of drinken toevoegen*. Druk op 🎤 en zeg alles in één keer, bv. "2 boterhammen met kaas, een koffie met melk en een appel" (of typ het en druk op Enter). De app kiest zelf de producten en porties en toont een **controlelijst**. Tik op een regel om de hoeveelheid of het product aan te passen, en daarna op *Alles toevoegen*. Wat je aanpast, onthoudt de app: kies je één keer Gouda met 20 g per snee, dan wordt "kaas" voortaan meteen Gouda van 20 g.
   - **Gewone voeding** (brood, kaas, fruit, groenten, vlees, dranken …) zit in de ingebouwde basislijst, met porties zoals *1 snee*, *1 middelgroot* of *glas 200 ml*. Voor producten zonder vaste portie (vlees, rijst, pasta …) kies je het gewicht.
   - **Verpakte producten:** scan de **barcode** (▥) of tik de cijfers onder de barcode in.
   - **Speciaalbier of wijn** die niet in de lijst staat: kies *🍺 Bier of wijn: berekenen via alcohol%*. Je geeft het alcoholpercentage en de hoeveelheid in (en eventueel de koolhydraten van het etiket), en de app berekent de kcal. Een Duvel van 8,5% en 33 cl geeft zo 153 kcal uit de alcohol alleen; de suikers komen daar nog bij.
