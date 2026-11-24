@@ -38,7 +38,8 @@ Open de app daarna altijd via het icoon. Op een iPhone kan Safari de gegevens va
   - **Speciaalbier of wijn** die niet in de lijst staat: kies *🍺 Bier of wijn: berekenen via alcohol%*. Je geeft het alcoholpercentage en de hoeveelheid in (en eventueel de koolhydraten van het etiket), en de app berekent de kcal. Een Duvel van 8,5% en 33 cl geeft zo 153 kcal uit de alcohol alleen; de suikers komen daar nog bij.
   - Staat iets er niet in, geef dan de kcal één keer zelf in.
   - Alles wat je toevoegt, komt in *Mijn producten* en staat de volgende keer bovenaan.
-- **Polar Flow:** neem 's avonds het getal uit het dagoverzicht van Polar Flow over. Vul het **totaal verbruik** in (inclusief rustverbruik) of enkel de **actieve kcal**, niet allebei. Controleer in Polar welk getal het is. Laat je het leeg, dan rekent de app met een schatting.
+- **Polar Flow automatisch:** na het eenmalig installeren van de tussenserver (zie `server/INSTALLEREN.md`) koppel je in Instellingen met je Polar-account. Daarna haalt de app stappen, actieve kcal en trainingen vanzelf op.
+- **Polar Flow met de hand:** neem 's avonds het getal uit het dagoverzicht van Polar Flow over. Vul het **totaal verbruik** in (inclusief rustverbruik) of enkel de **actieve kcal**, niet allebei. Controleer in Polar welk getal het is. Laat je het leeg, dan rekent de app met een schatting.
 
 ## Back-up
 

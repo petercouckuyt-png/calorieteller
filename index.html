@@ -123,6 +123,10 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
    <div><label>Enkel actieve kcal</label><input id="polAct" inputmode="numeric" placeholder="bv. 650"></div>
   </div>
   <label>Wat heb je gedaan?</label><input id="note" placeholder="bv. 45 min wandelen, 5 km lopen">
+  <div id="polBox" style="display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+   <div class="small" id="polInfo"></div>
+   <button class="btn sec" id="polSync">🔄 Ophalen uit Polar</button>
+  </div>
  </div>
  <div class="card"><h2>Laatste 7 dagen</h2><svg id="week" viewBox="0 0 360 170"></svg>
   <div class="legend"><span><i style="background:var(--g);height:10px"></i>Gegeten</span><span><i style="background:var(--r);height:10px"></i>Boven budget</span><span><i style="background:var(--t)"></i>Budget</span></div></div>
@@ -174,6 +178,13 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
   <label>Dagelijkse beweging zonder Polar-getal</label>
   <select id="s_act"><option value="1.2">Weinig beweging (zittend werk)</option><option value="1.375">Licht actief</option><option value="1.55">Matig actief</option></select>
   <button class="btn" id="s_save">Bewaren</button>
+ </div>
+ <div class="card">
+  <h2>🏃 Polar Flow</h2>
+  <div class="small" id="polStatus"></div>
+  <label>Adres van de tussenserver</label><input id="srv" placeholder="https://calorieteller.….workers.dev" autocomplete="off">
+  <button class="btn" id="polLink">Koppel met Polar</button>
+  <button class="btn sec" id="polUnlink" style="display:none">Ontkoppelen</button>
  </div>
  <div class="card">
   <details><summary>🍽️ Mijn producten (<span id="favN">0</span>)</summary>
@@ -316,13 +327,16 @@ function energy(d){
  const p=P(),w=weightOn(d),h=num(p.h),birth=num(p.birth),rate=num(p.rate)||0.5,act=num(p.act)||1.2;
  let bmr=null;
  if(w&&h&&birth&&(p.sex==='m'||p.sex==='v')){const age=toD(d).getFullYear()-birth;bmr=10*w+6.25*h*100-5*age+(p.sex==='m'?5:-161)}
- const dy=getDay(d),tot=num(dy.polTot),actv=num(dy.polAct);
+ const dy=getDay(d),tot=num(dy.polTot),actv=num(dy.polAct),pa=dy.polar;
  let burn=null,how='';
  if(tot!=null){burn=tot;how='Polar totaal'}
  else if(actv!=null&&bmr!=null){burn=bmr+actv;how=`rust ${f0(bmr)} + Polar actief ${f0(actv)}`}
+ // automatisch uit Polar: zelfde formule (eigen rustverbruik + actieve kcal van Polar)
+ else if(pa&&pa.act!=null&&bmr!=null){burn=bmr+pa.act;how=`rust ${f0(bmr)} + Polar actief ${f0(pa.act)}${d===today()?' tot nu':''}`}
+ else if(pa&&pa.cal!=null){burn=pa.cal;how='Polar totaal'}
  else if(bmr!=null){burn=bmr*act;how=`schatting: rust ${f0(bmr)} × ${cv(act)}`}
  const deficit=rate*KCAL_PER_KG/7;
- return{bmr,burn,how,deficit,rate,budget:burn!=null?burn-deficit:null};
+ return{bmr,burn,how,deficit,rate,budget:burn!=null?burn-deficit:null,partial:/tot nu/.test(how)};
 }
 
 /* ---------- navigatie ---------- */
@@ -387,7 +401,8 @@ function renderToday(){
   </div>
   <div class="small" style="margin-top:8px">Budget = verbruik (${e.how}) − ${f0(e.deficit)} kcal voor ${cv(e.rate)} kg/week.</div>`;
   const minK=P().sex==='v'?1200:1500;
-  if(e.budget<minK)html+=`<div class="small" style="color:var(--o);margin-top:6px">⚠️ Je budget ligt onder ${f0(minK)} kcal, het minimum dat vaak aangeraden wordt zonder medische begeleiding. Overweeg een trager tempo.</div>`;
+  if(e.partial)html+=`<div class="small" style="margin-top:6px">Je budget groeit nog mee met wat je vandaag beweegt.</div>`;
+  else if(e.budget<minK)html+=`<div class="small" style="color:var(--o);margin-top:6px">⚠️ Je budget ligt onder ${f0(minK)} kcal, het minimum dat vaak aangeraden wordt zonder medische begeleiding. Overweeg een trager tempo.</div>`;
  }
  $('bal').innerHTML=html;
  // maaltijden
@@ -403,6 +418,7 @@ function renderToday(){
  $('meals').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editItem(+b.dataset.edit));
  // activiteit
  $('polTot').value=cv(dy.polTot);$('polAct').value=cv(dy.polAct);$('note').value=dy.note||'';
+ renderPolarDay(dy);
  week();
  $('tip').textContent=TIPS[Math.floor(Date.now()/DAY)%TIPS.length];
 }
@@ -505,6 +521,9 @@ function renderSettings(){
  $('favN').textContent=favs.length;
  $('favList').innerHTML=favs.map(([k,f])=>`<li><span class="nm">${esc(f.name)}<small>${esc(f.brand||'')} ${f.unitKcal!=null?f0(f.unitKcal)+' kcal/stuk':f0(f.per100)+' kcal/100 g'}</small></span><button class="x" data-k="${esc(k)}" aria-label="Verwijderen">✕</button></li>`).join('')||'<li class="small">Nog geen producten.</li>';
  $('favList').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(confirm(S.foods[b.dataset.k].name+' uit de lijst halen?')){delete S.foods[b.dataset.k];save();renderSettings()}});
+ $('srv').value=S.srv||'';
+ $('polStatus').textContent=S.polar?`Gekoppeld sinds ${nice(S.polar.since)}.${S.polar.last?' Laatst opgehaald: '+new Date(S.polar.last).toLocaleString('nl-BE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'.':''}`:'Niet gekoppeld. Vul het adres van de tussenserver in en koppel met je eigen Polar-account.';
+ $('polLink').textContent=S.polar?'Opnieuw koppelen':'Koppel met Polar';$('polUnlink').style.display=S.polar?'block':'none';
  $('bakInfo').textContent=S.lastBackup?'Laatste back-up: '+nice(S.lastBackup):'Nog geen back-up gemaakt.';
 }
 $('s_save').onclick=()=>{const p=P();
@@ -820,12 +839,68 @@ $('scanBtn').onclick=async()=>{
 function stopScan(){scanning=false;$('scan').classList.remove('on');if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
 $('scanStop').onclick=stopScan;
 
+/* ---------- Polar Flow (via de tussenserver) ---------- */
+const SPORT={RUNNING:'Lopen',WALKING:'Wandelen',CYCLING:'Fietsen',ROAD_BIKING:'Wielrennen',MOUNTAIN_BIKING:'Mountainbike',SWIMMING:'Zwemmen',STRENGTH_TRAINING:'Krachttraining',HIKING:'Wandeltocht',NORDIC_WALKING:'Nordic walking',INDOOR_CYCLING:'Indoorfietsen',OTHER:'Andere'};
+const sportNl=s=>SPORT[String(s||'').toUpperCase()]||String(s||'Training').toLowerCase().replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
+const isoMin=s=>{const m=/PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?/.exec(s||'');return m?Math.round((+m[1]||0)*60+(+m[2]||0)+(+m[3]||0)/60):null};
+const srvUrl=()=>(S.srv||'').replace(/\/+$/,'');
+function renderPolarDay(dy){
+ $('polBox').style.display=S.polar?'block':'none';if(!S.polar)return;
+ const pa=dy.polar,ex=dy.ex||[];
+ $('polInfo').innerHTML=pa?`<b>Polar:</b> ${pa.steps!=null?f0(pa.steps)+' stappen · ':''}actief ${f0(pa.act)} kcal${pa.cal!=null?' · totaal volgens Polar '+f0(pa.cal)+' kcal':''}`
+  +(ex.length?'<br>'+ex.map(e=>`🏃 ${esc(sportNl(e.sport))}${e.min!=null?' · '+e.min+' min':''}${e.kcal!=null?' · '+f0(e.kcal)+' kcal':''}`).join('<br>'):'')
+  +(dy.polTot!==''||dy.polAct!==''?'<br><i>Je eigen getal hierboven gaat voor.</i>':'')
+  :'Nog geen Polar-gegevens voor deze dag.';
+}
+async function polarGet(path){
+ const r=await fetch(srvUrl()+path,{headers:{Authorization:'Bearer '+S.polar.key}});
+ const d=await r.json().catch(()=>({}));
+ if(r.status===401){throw new Error((d.error||'Koppeling verlopen')+' ')}
+ if(!r.ok)throw new Error(d.error||('Server antwoordt '+r.status));
+ return d}
+let syncing=false;
+async function polarSync(manual){
+ if(!S.polar||!S.srv||syncing)return;
+ if(!manual&&S.polar.last&&Date.now()-S.polar.last<30*60e3)return; // hoogstens elk half uur vanzelf
+ syncing=true;$('polSync').disabled=true;$('polSync').textContent='Bezig met ophalen…';
+ try{
+  const from=addDays(today(),-6),to=today();
+  const a=await polarGet(`/polar/activity?from=${from}&to=${to}`);
+  (a.days||[]).forEach(x=>{if(!x.date)return;mutDay(x.date).polar={cal:num(x.calories),act:num(x.active_calories),steps:num(x.steps),at:Date.now()}});
+  try{const e=await polarGet('/polar/exercises');const by={};
+   (e.exercises||[]).forEach(x=>{const d=(x.start_time||'').slice(0,10);if(!d)return;(by[d]=by[d]||[]).push({id:x.id,sport:x.sport,min:isoMin(x.duration),kcal:num(x.calories)})});
+   Object.entries(by).forEach(([d,l])=>{mutDay(d).ex=l});
+  }catch(e){console.warn('Trainingen niet opgehaald:',e)}
+  S.polar.last=Date.now();save();render();if(manual)toast('Polar opgehaald ✓');
+ }catch(e){toast('Polar: '+e.message)}
+ finally{syncing=false;$('polSync').disabled=false;$('polSync').textContent='🔄 Ophalen uit Polar'}
+}
+$('polSync').onclick=()=>polarSync(true);
+$('polLink').onclick=()=>{
+ const s=$('srv').value.trim().replace(/\/+$/,'');
+ if(!/^https:\/\/[^/]+$/.test(s)){toast('Vul het adres van de tussenserver in (https://…)');$('srv').focus();return}
+ S.srv=s;save();
+ location.href=s+'/polar/start?return='+encodeURIComponent(location.origin+location.pathname);
+};
+$('polUnlink').onclick=async()=>{
+ if(!confirm('Polar ontkoppelen? Opgehaalde gegevens blijven staan.'))return;
+ try{await fetch(srvUrl()+'/polar/unlink',{method:'POST',headers:{Authorization:'Bearer '+S.polar.key}})}catch(e){}
+ S.polar=null;save();render();toast('Polar ontkoppeld');
+};
+// terugkomst van de Polar-aanmelding: #polar=<koppelcode> of #polar_error=<reden>
+(function(){const h=new URLSearchParams(location.hash.slice(1));
+ if(h.get('polar')){S.polar={key:h.get('polar'),since:today(),last:null};save();history.replaceState(null,'',location.pathname);setTimeout(()=>{toast('Polar gekoppeld ✓');polarSync(true)},300)}
+ else if(h.get('polar_error')){history.replaceState(null,'',location.pathname);setTimeout(()=>toast('Polar koppelen mislukt: '+h.get('polar_error')),300)}
+})();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)polarSync(false)});
+
 /* start */
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 let shown=today();// app bleef open over middernacht: spring naar de nieuwe dag
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;const t=today();if(t!==shown){if(cur===shown)cur=t;shown=t;$('wd').value=t;if(!$('sheet').classList.contains('on'))render()}});
 $('wd').value=today();
 const p0=P();go(p0.name&&p0.h&&p0.sex&&p0.birth?'today':'settings');
+polarSync(false);
 </script>
 </body>
 </html>
