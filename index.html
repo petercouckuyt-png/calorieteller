@@ -117,15 +117,17 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
  <div id="meals"></div>
  <div class="card">
   <h2>🏃 Activiteit (Polar Flow)</h2>
-  <div class="small">Neem het getal over uit het dagoverzicht van Polar Flow. Vul <b>één</b> van beide in. Leeg = schatting op basis van je profiel.</div>
-  <div class="row">
-   <div><label>Totaal verbruik (kcal)</label><input id="polTot" inputmode="numeric" placeholder="bv. 2650"></div>
-   <div><label>Enkel actieve kcal</label><input id="polAct" inputmode="numeric" placeholder="bv. 650"></div>
+  <div id="polBox" style="display:none">
+   <div id="polInfo"></div>
+   <button class="btn sec" id="polSync" style="margin-top:10px">🔄 Ophalen uit Polar</button>
   </div>
-  <label>Wat heb je gedaan?</label><input id="note" placeholder="bv. 45 min wandelen, 5 km lopen">
-  <div id="polBox" style="display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
-   <div class="small" id="polInfo"></div>
-   <button class="btn sec" id="polSync">🔄 Ophalen uit Polar</button>
+  <div id="manBox">
+   <div class="small" id="manIntro">Neem het getal over uit het dagoverzicht van Polar Flow. Vul <b>één</b> van beide in. Leeg = schatting op basis van je profiel.</div>
+   <div class="row">
+    <div><label>Totaal verbruik (kcal)</label><input id="polTot" inputmode="numeric" placeholder="bv. 2650"></div>
+    <div><label>Enkel actieve kcal</label><input id="polAct" inputmode="numeric" placeholder="bv. 650"></div>
+   </div>
+   <label>Wat heb je gedaan?</label><input id="note" placeholder="bv. 45 min wandelen, 5 km lopen">
   </div>
  </div>
  <div class="card"><h2>Laatste 7 dagen</h2><svg id="week" viewBox="0 0 360 170"></svg>
@@ -209,7 +211,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
    <p><b>Rustverbruik</b> volgens de formule van Mifflin-St Jeor: 10 × kg + 6,25 × cm − 5 × leeftijd, +5 (man) of −161 (vrouw). Leeftijd = jaar van de dag − geboortejaar.</p>
    <p><b>Dagverbruik</b>: het totaal van Polar als je dat invult; anders rustverbruik + actieve kcal van Polar; anders rustverbruik × je bewegingsfactor (1,2 / 1,375 / 1,55). Dat laatste is een ruwe schatting.</p>
    <p><b>Maximum vandaag</b> (het totaal dat je vandaag mag eten) = dagverbruik − tekort. Wat je daarvan nog niet gegeten hebt, staat bovenaan als "Nog … kcal". Tekort = tempo × 7.700 kcal ÷ 7 (vuistregel: 1 kg lichaamsvet ≈ 7.700 kcal). Bij 0,5 kg/week is dat 550 kcal per dag.</p>
-   <p><b>Calorieën van producten.</b> De basislijst (± 180 gewone voedingsmiddelen) komt uit de Amerikaanse voedingstabel <a href="https://fdc.nal.usda.gov" target="_blank" rel="noopener">USDA FoodData Central</a> (SR Legacy, 2018, publiek domein), inclusief de portiegewichten (snee, middelgroot, eetlepel …). Amerikaanse producten kunnen wat afwijken van Belgische. Glazen en kopjes (bv. glas 200 ml) zijn vaste maten waarbij 1 ml als 1 g telt. Barcodes worden opgezocht in <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, een vrije databank die door gebruikers wordt aangevuld. Controleer bij twijfel het etiket; je kunt de kcal per 100 g altijd zelf aanpassen.</p>
+   <p><b>Calorieën van producten.</b> De basislijst (± 180 gewone voedingsmiddelen) komt uit de Amerikaanse voedingstabel <a href="https://fdc.nal.usda.gov" target="_blank" rel="noopener">USDA FoodData Central</a> (SR Legacy, 2018, publiek domein), inclusief de portiegewichten (snee, middelgroot, eetlepel …). Amerikaanse producten kunnen wat afwijken van Belgische. Glazen en kopjes (bv. glas 200 ml) zijn vaste maten waarbij 1 ml als 1 g telt. Een eetlepel weegt wat de USDA-tabel voor dat product opgeeft; staat het er niet in, dan rekent de app met 15 ml (eetlepel) en 5 ml (koffielepel), ook hier 1 ml = 1 g. Olie en meel wegen per lepel wat minder, stroop en honing wat meer. Barcodes worden opgezocht in <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, een vrije databank die door gebruikers wordt aangevuld. Controleer bij twijfel het etiket; je kunt de kcal per 100 g altijd zelf aanpassen.</p>
    <p><b>Alcohol-rekenhulp</b>: kcal = ml × alcohol% × 0,789 g/ml (dichtheid van alcohol) × 6,93 kcal/g (dezelfde factor als in de USDA-tabel), plus koolhydraten × 4 kcal/g als je die van het etiket invult. Zonder koolhydraten is de uitkomst een ondergrens.</p>
    <p>Dit is een hulpmiddel om op te volgen, geen medisch advies.</p>
    </div>
@@ -586,6 +588,11 @@ function showStep(s){$('stSearch').style.display=s==='search'?'block':'none';$('
 const NW={een:1,'één':1,eén:1,twee:2,drie:3,vier:4,vijf:5,zes:6,zeven:7,acht:8,negen:9,tien:10,half:.5,halve:.5,anderhalf:1.5,anderhalve:1.5};
 function parseQty(s){
  s=String(s||'').trim();let n=null,grams=null,m;
+ // "2 eetlepels olijfolie", "een koffielepel suiker", "3 el mayo"
+ if((m=s.match(/^(\d+(?:[.,]\d+)?|[a-zéë]+)?\s*\b(eetlepels?|soeplepels?|lepels?|el|koffielepels?|theelepels?|kl|tl)\b\.?\s+(?:van\s+)?(.+)$/i))){
+  const v=m[1]?num(m[1])??NW[m[1].toLowerCase()]:1,short=/^(el|kl|tl)$/i.test(m[2]);
+  if(v!=null&&v>0&&v<50&&(!short||m[1]))return{n:v,grams:null,term:m[3].trim(),spoon:/^(koffie|thee|kl|tl)/i.test(m[2])?'kl':'el'};
+ }
  if((m=s.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|cl|dl|l|liter)\.?\s+(?:van\s+)?(.+)$/i))){const u=m[2].toLowerCase();grams=num(m[1])*({cl:10,dl:100,l:1000,liter:1000}[u]||1);s=m[3]}
  else if((m=s.match(/^(\d+(?:[.,]\d+)?|[a-zéë]+)\s*(?:x\s+|\s+)(.+)$/i))){const v=num(m[1])??NW[m[1].toLowerCase()];if(v!=null&&v>0&&v<50){n=v;s=m[2]}}
  return{n,grams,term:s.trim()};
@@ -626,6 +633,11 @@ $('autoBtn').onclick=()=>{const t=$('q').value.trim();if(t)autoFill(t)};
 const PREF0={kaas:'Emmentaler (kaas)',melk:'Halfvolle melk',boterham:'Bruin/volkorenbrood',brood:'Bruin/volkorenbrood',sandwich:'Wit brood',wijn:'Rode wijn',koffie:'Koffie, zwart',bier:'Bier (pils)',pintje:'Bier (pils)',pint:'Bier (pils)',eitje:'Ei, gekookt',ei:'Ei, gekookt',friet:'Frieten (frituur)',frietje:'Frieten (frituur)',rijst:'Rijst wit, gekookt',pasta:'Pasta, gekookt',spaghetti:'Spaghetti bolognese',chocolade:'Melkchocolade',choco:'Chocopasta (hazelnoot)',koek:'Boterkoekjes',koekje:'Boterkoekjes',yoghurt:'Yoghurt natuur (vol)',water:'Water',thee:'Thee',cola:'Cola',boter:'Boter',ham:'Hesp',aardappel:'Aardappelen, gekookt',patat:'Aardappelen, gekookt',gehakt:'Rundergehakt, gebakken',worst:'Braadworst',vis:'Kabeljauw',noot:'Amandelen',sap:'Sinaasappelsap',fruitsap:'Sinaasappelsap'};
 const PREF=Object.fromEntries(Object.entries(PREF0).map(([k,v])=>[stem(k),v]));
 // standaardportie: liefst "middelgroot", anders snee/stuk, anders de eerste
+// eetlepel en koffielepel voor elk product: liefst het gewicht uit de USDA-tabel, anders 15 ml / 5 ml (1 ml = 1 g)
+const spoonsFor=por=>{const has=re=>(por||[]).some(p=>re.test(p[0]));
+ return[has(/eetlepel/)?null:['1 eetlepel (± 15 g)',15],has(/koffielepel|theelepel/)?null:['1 koffielepel (± 5 g)',5]].filter(Boolean)};
+const allPor=por=>(por||[]).concat(spoonsFor(por));
+const spoonG=(pr,sp)=>sp?(allPor(pr.portions).find(p=>(sp==='el'?/eetlepel/:/koffielepel|theelepel/).test(p[0]))||[])[1]:null;
 const defPortion=por=>(por||[]).find(p=>/middelgroot/.test(p[0]))||(por||[]).find(p=>/^1 (snee|stuk)$/.test(p[0]))||(por||[])[0];
 const words=h=>h.split(/[^a-z0-9]+/).filter(Boolean);
 function score2(tk,hay,name,hint){
@@ -648,7 +660,7 @@ function makeItem(pr,n,g,meal){
  const it={name:pr.name,brand:pr.brand||'',meal,n,key:pr.key};
  if(pr.unitKcal!=null){it.unitKcal=pr.unitKcal;it.kcal=Math.round(n*pr.unitKcal);return it}
  it.g=g;it.per100=pr.per100;it.kcal=Math.round(n*g*(pr.per100||0)/100);
- const pl=(pr.portions||[]).find(p=>p[1]===g);if(pl)it.pl=pl[0];
+ const pl=allPor(pr.portions).find(p=>p[1]===g);if(pl)it.pl=pl[0];
  return it}
 function splitSpoken(t){
  const parts=[];
@@ -665,7 +677,7 @@ function autoFill(t){
   if(!best||best.score<2)return{text:p.text,it:null,alts:c.slice(0,5).map(x=>x.prod)};
   const pr=best.prod,por=pr.portions||[];
   const dp=defPortion(por);
-  let n=q.n||1,g=q.grams||pr.g||(dp&&dp[1])||pr.serving||null,flag=null;
+  let n=q.n||1,g=q.grams||(pr.unitKcal==null&&spoonG(pr,q.spoon))||pr.g||(dp&&dp[1])||pr.serving||null,flag=null;
   if(q.grams)n=1;
   if(pr.unitKcal==null&&g==null){g=100;flag='gewicht geschat (100 g) – tik om aan te passen'}
   return{text:p.text,prod:pr,it:makeItem(pr,n,g,SH.meal),flag};
@@ -753,7 +765,7 @@ function pick(prod,item){
  const pq=item?null:parseQty($('q').value);
  const por=prod.portions||[];
  const dp=defPortion(por);
- let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&pq.grams)||prod.g||(dp&&dp[1])||prod.serving||null;
+ let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&pq.grams)||(pq&&prod.unitKcal==null&&spoonG(prod,pq.spoon))||prod.g||(dp&&dp[1])||prod.serving||null;
  // geen gekende portie: start bij 1 × 100 g en laat het gewicht schatten
  if(g==null){g=100;if(!item)n=1}
  if(!item&&pq&&pq.grams)n=1;
@@ -765,7 +777,9 @@ function pick(prod,item){
  $('pPer100').value=cv(prod.per100);$('pUnit').value=cv(prod.unitKcal);$('pG').value=cv(Math.round(g*10)/10);$('pN').value=cv(n);
  const opts=por.map(([l,gr])=>[gr,`${l} · ${cv(gr)} g`]);
  if(prod.serving&&prod.serving!==100)opts.push([prod.serving,`portie (etiket) · ${cv(prod.serving)} g`]);
- if(opts.length)opts.push([100,'100 g']);else[50,100,150,200,250].forEach(v=>opts.push([v,v+' g']));
+ const real=opts.length;
+ spoonsFor(por).forEach(([l,gr])=>opts.push([gr,l]));
+ if(real)opts.push([100,'100 g']);else[50,100,150,200,250].forEach(v=>opts.push([v,v+' g']));
  $('gChips').innerHTML=opts.map(([v,l])=>`<button class="chip" data-g="${v}">${l}</button>`).join('');
  $('gChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('pG').value=cv(b.dataset.g);calc()});
  renderMealChips();
@@ -794,7 +808,7 @@ $('pAdd').onclick=()=>{
  if(SH.alc){const ml=num($('aMl').value);name=`${name} (${cv(num($('aPct').value))}%, ${ml%10?cv(ml)+' ml':cv(ml/10)+' cl'}${num($('aCarb').value)==null?', zonder suikers':''})`}
  const n=num($('pN').value)||1;
  const it={name,brand:pr.brand||'',meal:SH.meal,n,kcal:Math.round(k),key:pr.key||'own:'+norm(name)};
- if(SH.alc){it.unitKcal=Math.round(alcPer());it.kcal=Math.round(n*it.unitKcal)}else if(SH.unit)it.unitKcal=num($('pUnit').value);else{it.g=num($('pG').value);it.per100=num($('pPer100').value);const pl=(pr.portions||[]).find(p=>p[1]===it.g);if(pl)it.pl=pl[0]}
+ if(SH.alc){it.unitKcal=Math.round(alcPer());it.kcal=Math.round(n*it.unitKcal)}else if(SH.unit)it.unitKcal=num($('pUnit').value);else{it.g=num($('pG').value);it.per100=num($('pPer100').value);const pl=allPor(pr.portions).find(p=>p[1]===it.g);if(pl)it.pl=pl[0]}
  if(SH.rvIdx!=null){ // terug naar de controlelijst
   SH.review[SH.rvIdx]={text:SH.review[SH.rvIdx].text,prod:{...pr,name,key:it.key,unitKcal:it.unitKcal??pr.unitKcal},it,flag:null};
   SH.rvIdx=null;showStep('review');renderReview();return}
@@ -847,12 +861,21 @@ const isoMin=s=>{const m=/PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:
 const DEFAULT_SRV='https://calorieteller.peter-couckuyt.workers.dev';
 const srvUrl=()=>(S.srv||DEFAULT_SRV).replace(/\/+$/,'');
 function renderPolarDay(dy){
- $('polBox').style.display=S.polar?'block':'none';if(!S.polar)return;
+ const on=!!S.polar;
+ $('polBox').style.display=on?'block':'none';
+ $('manBox').style.cssText=on?'margin-top:14px;border-top:1px solid var(--line);padding-top:10px':'';
+ $('manIntro').innerHTML=on?'<b>Zelf invullen</b> – niet nodig, Polar wordt vanzelf opgehaald. Vul je toch een getal in, dan gaat dat voor op Polar.'
+  :'Neem het getal over uit het dagoverzicht van Polar Flow. Vul <b>één</b> van beide in. Leeg = schatting op basis van je profiel.';
+ if(!on)return;
  const pa=dy.polar,ex=dy.ex||[];
- $('polInfo').innerHTML=pa?`<b>Polar:</b> ${pa.steps!=null?f0(pa.steps)+' stappen · ':''}actief ${f0(pa.act)} kcal${pa.cal!=null?' · totaal volgens Polar '+f0(pa.cal)+' kcal':''}`
-  +(ex.length?'<br>'+ex.map(e=>`🏃 ${esc(sportNl(e.sport))}${e.min!=null?' · '+e.min+' min':''}${e.kcal!=null?' · '+f0(e.kcal)+' kcal':''}`).join('<br>'):'')
-  +(dy.polTot!==''||dy.polAct!==''?'<br><i>Je eigen getal hierboven gaat voor.</i>':'')
-  :'Nog geen Polar-gegevens voor deze dag.';
+ const when=t=>{if(!t)return'';const d=new Date(t),hm=d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
+  return iso(d)===today()?'vandaag om '+hm:d.toLocaleDateString('nl-BE',{day:'2-digit',month:'2-digit'})+' om '+hm};
+ const st=(v,l)=>`<div class="stat"><b>${v!=null?f0(v):'–'}</b><span>${l}</span></div>`;
+ $('polInfo').innerHTML=(pa?`<div class="stats three">${st(pa.steps,'Stappen')}${st(pa.act,'Actieve kcal')}${st(pa.cal,'Totaal Polar')}</div>`
+  +(ex.length?'<div style="margin-top:8px">'+ex.map(e=>`🏃 <b>${esc(sportNl(e.sport))}</b>${e.min!=null?' · '+e.min+' min':''}${e.kcal!=null?' · '+f0(e.kcal)+' kcal':''}`).join('<br>')+'</div>':'')
+  +(dy.polTot!==''||dy.polAct!==''?'<div class="small" style="margin-top:6px;color:var(--o)">Je eigen getal hieronder gaat voor op Polar.</div>':'')
+  :'<div>Nog geen Polar-gegevens voor deze dag.</div>')
+  +`<div class="small" style="margin-top:6px">Opgehaald uit Polar ${when((pa&&pa.at)||S.polar.last)||'– nog niet'}</div>`;
 }
 async function polarGet(path){
  const r=await fetch(srvUrl()+path,{headers:{Authorization:'Bearer '+S.polar.key}});
