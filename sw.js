@@ -1,5 +1,5 @@
 // Zorgt dat de app ook zonder internet opent. Verhoog VERSION bij elke aanpassing van de app.
-const VERSION = 'calorieteller-7';
+const VERSION = 'calorieteller-8';
 const FILES = ['./', './index.html', './voeding.js', './manifest.webmanifest', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
