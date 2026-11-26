@@ -232,14 +232,14 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
  <div class="top"><button id="shBack">‹</button><h3 id="shTitle">Toevoegen</h3><button id="shClose">✕</button></div>
  <div class="body">
   <div id="stSearch">
-   <div class="search">
-    <input id="q" placeholder="bv. 2 boterhammen kaas" autocomplete="off" enterkeyhint="search">
-    <button class="ib" id="mic" aria-label="Inspreken">🎤</button>
-    <button class="ib" id="scanBtn" aria-label="Barcode scannen">▥</button>
-   </div>
+   <form class="search" id="qForm" action="javascript:void 0">
+    <input id="q" placeholder="bv. 2 boterhammen kaas" autocomplete="off" enterkeyhint="go">
+    <button type="button" class="ib" id="mic" aria-label="Inspreken">🎤</button>
+    <button type="button" class="ib" id="scanBtn" aria-label="Barcode scannen">▥</button>
+   </form>
    <div class="queue" id="queue"></div>
-   <div class="small" id="hint" style="margin-top:6px">Druk op 🎤 en zeg alles in één keer, bv. "koffie met melk, 2 boterhammen met kaas en een appel". De app vult het zelf in; jij controleert.</div>
-   <button class="btn" id="autoBtn" style="display:none">⚡ Automatisch invullen</button>
+   <div class="small" id="hint" style="margin-top:6px">Zeg 🎤 of typ alles in één keer, bv. "koffie met melk, 2 boterhammen met kaas en een potje yoghurt van 125 g". De app vult het zelf in; jij controleert.</div>
+   <button class="btn" id="autoBtn" style="display:none">✓ Invullen</button>
    <div class="card" style="margin-top:10px"><h2>Resultaten</h2><ul class="res" id="local"></ul></div>
    <button class="btn" id="online">🔎 Zoek online (Open Food Facts)</button>
    <div class="card" style="margin-top:10px;display:none" id="onlineBox"><h2>Open Food Facts</h2><ul class="res" id="remote"></ul></div>
@@ -270,7 +270,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
     </div>
     <div id="per100Box"><label>kcal per 100 g / 100 ml</label><input id="pPer100" inputmode="decimal"></div>
     <div id="unitBox"><label>kcal per stuk / portie</label><input id="pUnit" inputmode="decimal"></div>
-    <div id="gramBox"><label>Gram of ml per stuk</label><input id="pG" inputmode="decimal"><div class="chips" id="gChips"></div></div>
+    <div id="gramBox"><label>Gewicht van 1 stuk of potje (g of ml)</label><input id="pG" inputmode="decimal"><div class="chips" id="gChips"></div></div>
     <label>Aantal</label>
     <div class="stepper"><button id="nMin">−</button><input id="pN" inputmode="decimal"><button id="nPlus">＋</button></div>
     <div class="total" id="pTot">0 kcal</div>
@@ -595,11 +595,14 @@ function parseQty(s){
  }
  if((m=s.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|cl|dl|l|liter)\.?\s+(?:van\s+)?(.+)$/i))){const u=m[2].toLowerCase();grams=num(m[1])*({cl:10,dl:100,l:1000,liter:1000}[u]||1);s=m[3]}
  else if((m=s.match(/^(\d+(?:[.,]\d+)?|[a-zéë]+)\s*(?:x\s+|\s+)(.+)$/i))){const v=num(m[1])??NW[m[1].toLowerCase()];if(v!=null&&v>0&&v<50){n=v;s=m[2]}}
- return{n,grams,term:s.trim()};
+ // gewicht per stuk achteraan: "2 potjes yoghurt van 125 g", "yoghurt 125 gram"
+ let unitG=null;
+ if(grams==null&&(m=s.match(/^(.+?)(?:\s+(?:van|à|a))?\s+(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|cl)\.?$/i))){unitG=num(m[2])*(m[3].toLowerCase()==='cl'?10:1);s=m[1]}
+ return{n,grams,unitG,term:s.trim()};
 }
 // eenvoudige Nederlandse stam: meervoud/verkleinwoord eraf, dubbele medeklinker inkorten (boterhammen → boterham)
 const stem=w=>{let s=w.replace(/(tjes|jes|en|s)$/,'');if(s.length<3)s=w;if(/([^aeiou])\1$/.test(s))s=s.slice(0,-1);return s};
-const tokens=t=>norm(t).split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!['met','van','een','het','zonder','wat','stuk','stukje','beetje','glas','kop','tas','kopje'].includes(w)).map(stem);
+const tokens=t=>norm(t).split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!['met','van','een','het','zonder','wat','stuk','stukje','stukjes','beetje','glas','glazen','kop','tas','kopje','potje','potjes','pot','pak','pakje','flesje','blikje','zakje','bakje'].includes(w)).map(stem);
 const score=(tk,hay)=>tk.reduce((a,w,i)=>a+(hay.includes(w)?(i===0?1.5:1):0),0);
 function renderQueue(){$('queue').innerHTML=SH.queue.length?'<span class="small">Nog te doen:</span>'+SH.queue.map((q,i)=>`<button class="chip" data-i="${i}">${esc(q)}</button>`).join(''):'';
  $('queue').querySelectorAll('button').forEach(b=>b.onclick=()=>{const q=SH.queue.splice(+b.dataset.i,1)[0];setQuery(q)})}
@@ -625,8 +628,11 @@ function renderLocal(){
  return favs.length+base.length;
 }
 $('q').addEventListener('input',()=>{renderLocal();$('autoBtn').style.display=$('q').value.trim()&&SH.rvIdx==null?'block':'none'});
-$('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('q').blur();const t=$('q').value.trim();if(/^\d{8,14}$/.test(t)||SH.rvIdx!=null)offSearch();else if(t)autoFill(t)}});
-$('autoBtn').onclick=()=>{const t=$('q').value.trim();if(t)autoFill(t)};
+// Enter / "Ga" op het toetsenbord doet hetzelfde als inspreken: alles automatisch invullen
+function submitTyped(){$('q').blur();const t=$('q').value.trim();if(!t)return;
+ if(/^\d{8,14}$/.test(t))lookupCode(t);else if(SH.rvIdx!=null){renderLocal()}else autoFill(t)}
+$('qForm').addEventListener('submit',e=>{e.preventDefault();submitTyped()});
+$('autoBtn').onclick=submitTyped;
 
 /* ---------- automatisch invullen ---------- */
 // voorkeur bij een algemeen woord ("kaas", "melk" …); wat je zelf al eens koos, wint altijd
@@ -677,7 +683,7 @@ function autoFill(t){
   if(!best||best.score<2)return{text:p.text,it:null,alts:c.slice(0,5).map(x=>x.prod)};
   const pr=best.prod,por=pr.portions||[];
   const dp=defPortion(por);
-  let n=q.n||1,g=q.grams||(pr.unitKcal==null&&spoonG(pr,q.spoon))||pr.g||(dp&&dp[1])||pr.serving||null,flag=null;
+  let n=q.n||1,g=q.grams||q.unitG||(pr.unitKcal==null&&spoonG(pr,q.spoon))||pr.g||(dp&&dp[1])||pr.serving||null,flag=null;
   if(q.grams)n=1;
   if(pr.unitKcal==null&&g==null){g=100;flag='gewicht geschat (100 g) – tik om aan te passen'}
   return{text:p.text,prod:pr,it:makeItem(pr,n,g,SH.meal),flag};
@@ -715,9 +721,18 @@ $('online').onclick=()=>offSearch();
 
 /* Open Food Facts */
 const OFF='https://world.openfoodfacts.org';
-const FIELDS='code,product_name,product_name_nl,product_name_fr,product_name_en,brands,nutriments,serving_quantity';
+const FIELDS='code,product_name,product_name_nl,product_name_fr,product_name_en,brands,nutriments,serving_quantity,quantity,product_quantity';
+// verpakking uit het etiket: "4 x 125 g" → 1 stuk = 125 g; "125 g" → hele verpakking = 125 g
+function packPortion(q,pq){
+ const s=String(q||'').replace(/,/g,'.');let m;
+ const f=u=>({kg:1000,l:1000,cl:10}[String(u).toLowerCase()]||1);
+ if((m=s.match(/(\d+)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*(g|gr|ml|cl)\b/i)))return['1 stuk uit pak van '+m[1],+m[2]*f(m[3])];
+ if((m=s.match(/(\d+(?:\.\d+)?)\s*(g|gr|kg|ml|cl|l)\b/i))){const t=+m[1]*f(m[2]);if(t>0&&t<=1000)return['hele verpakking',t]}
+ if(!m&&pq>0&&pq<=1000)return['hele verpakking',pq];
+ return null}
 function mapOff(p){const n=p.nutriments||{};let k=num(n['energy-kcal_100g']);if(k==null&&num(n.energy_100g)!=null)k=num(n.energy_100g)/4.184;
- return{key:'off:'+p.code,code:p.code,name:(p.product_name_nl||p.product_name||p.product_name_fr||p.product_name_en||'(naamloos product)').trim(),brand:(p.brands||'').split(',')[0].trim(),per100:k!=null?Math.round(k):null,serving:num(p.serving_quantity)}}
+ const pk=packPortion(p.quantity,num(p.product_quantity));
+ return{key:'off:'+p.code,code:p.code,name:(p.product_name_nl||p.product_name||p.product_name_fr||p.product_name_en||'').trim(),brand:(p.brands||'').split(',')[0].trim(),per100:k!=null?Math.round(k):null,serving:num(p.serving_quantity),portions:pk?[pk]:null}}
 async function getJSON(u){const c=new AbortController(),t=setTimeout(()=>c.abort(),15000);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw new Error(r.status);return await r.json()}finally{clearTimeout(t)}}
 let lastRes=[];
 async function offSearch(){
@@ -733,11 +748,19 @@ async function offSearch(){
  }catch(e){$('remote').innerHTML=`<li class="small">${navigator.onLine?'Open Food Facts laat zoeken op naam momenteel niet toe (te druk of beperkt voor apps).':'Geen internet.'} Wat wel werkt: de <b>barcode</b> scannen of de cijfers eronder intikken, of de kcal zelf ingeven (zie etiket).</li>`}
 }
 async function lookupCode(code){
+ code=String(code).trim();
+ // al eens ingegeven of gescand? dan meteen uit de eigen lijst
+ const known=Object.entries(S.foods).find(([k,f])=>f.code===code);
+ if(known){pick({...known[1],key:known[0]});return}
  $('onlineBox').style.display='block';$('remote').innerHTML='<li class="spin">Barcode opzoeken…</li>';
- try{const d=await getJSON(`${OFF}/api/v2/product/${encodeURIComponent(code)}.json?fields=${FIELDS}`);
-  if(d.status!==1||!d.product){$('remote').innerHTML='<li class="small">Barcode niet gevonden in Open Food Facts. Geef de kcal zelf in (zie etiket).</li>';return}
-  pick(mapOff({...d.product,code}));
- }catch(e){$('remote').innerHTML='<li class="small">Opzoeken mislukt. Controleer je internet.</li>'}
+ $('onlineBox').scrollIntoView({block:'center'});
+ let d=null;
+ try{d=await getJSON(`${OFF}/api/v2/product/${encodeURIComponent(code)}.json?fields=${FIELDS}`)}
+ catch(e){if(e.message!=='404'){$('remote').innerHTML='<li class="small">Opzoeken mislukt. Controleer je internet en probeer opnieuw.</li>';toast('Barcode opzoeken mislukt');return}}
+ $('remote').innerHTML='';$('onlineBox').style.display='none';
+ // onbekend bij Open Food Facts (antwoord 404): meteen een nieuw product met deze barcode
+ if(!d||d.status!==1||!d.product){pick({key:'off:'+code,code,name:'',per100:null});return}
+ pick(mapOff({...d.product,code}));
 }
 
 /* portie */
@@ -765,21 +788,22 @@ function pick(prod,item){
  const pq=item?null:parseQty($('q').value);
  const por=prod.portions||[];
  const dp=defPortion(por);
- let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&pq.grams)||(pq&&prod.unitKcal==null&&spoonG(prod,pq.spoon))||prod.g||(dp&&dp[1])||prod.serving||null;
+ let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&(pq.grams||pq.unitG))||(pq&&prod.unitKcal==null&&spoonG(prod,pq.spoon))||prod.g||(dp&&dp[1])||prod.serving||null;
  // geen gekende portie: start bij 1 × 100 g en laat het gewicht schatten
  if(g==null){g=100;if(!item)n=1}
  if(!item&&pq&&pq.grams)n=1;
- const manual=!prod.name;
- $('pName').textContent=prod.name||'Zelf ingeven';$('pBrand').textContent=prod.brand||'';
- $('pNameBox').style.display=manual?'block':'none';$('pNameIn').value=manual?(pq?pq.term:''):'';
- const unit=prod.unitKcal!=null||manual;SH.unit=unit;
+ const manual=!prod.name,newCode=manual&&!!prod.code;
+ $('pName').textContent=newCode?'Nieuw product':prod.name||'Zelf ingeven';
+ $('pBrand').innerHTML=newCode&&prod.per100!=null?`Open Food Facts kent barcode ${esc(prod.code)}, maar zonder naam. Geef een naam in; de volgende keer herkent de app deze barcode meteen.`:newCode?`Barcode ${esc(prod.code)} is nog niet gekend. Neem de <b>naam</b> en de <b>kcal per 100 g</b> over van het etiket, en het gewicht van één stuk of potje. De volgende keer herkent de app deze barcode meteen.`:esc(prod.brand||'');
+ $('pNameBox').style.display=manual?'block':'none';$('pNameIn').placeholder=newCode?'bv. Yoghurt aardbei (merk)':'bv. Boterham met kaas';$('pNameIn').value=manual&&!newCode?(pq?pq.term:''):'';
+ const unit=prod.unitKcal!=null||(manual&&!newCode);SH.unit=unit;
  $('per100Box').style.display=unit?'none':'block';$('gramBox').style.display=unit?'none':'block';$('unitBox').style.display=unit?'block':'none';
  $('pPer100').value=cv(prod.per100);$('pUnit').value=cv(prod.unitKcal);$('pG').value=cv(Math.round(g*10)/10);$('pN').value=cv(n);
  const opts=por.map(([l,gr])=>[gr,`${l} · ${cv(gr)} g`]);
  if(prod.serving&&prod.serving!==100)opts.push([prod.serving,`portie (etiket) · ${cv(prod.serving)} g`]);
  const real=opts.length;
  spoonsFor(por).forEach(([l,gr])=>opts.push([gr,l]));
- if(real)opts.push([100,'100 g']);else[50,100,150,200,250].forEach(v=>opts.push([v,v+' g']));
+ if(real)opts.push([100,'100 g']);else[50,100,125,150,200,250].forEach(v=>opts.push([v,v+' g']));
  $('gChips').innerHTML=opts.map(([v,l])=>`<button class="chip" data-g="${v}">${l}</button>`).join('');
  $('gChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('pG').value=cv(b.dataset.g);calc()});
  renderMealChips();
