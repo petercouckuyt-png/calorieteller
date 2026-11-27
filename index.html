@@ -258,12 +258,19 @@ li.rv{display:block;padding:12px 2px}
    <button class="btn" id="online">🔎 Zoek online (Open Food Facts)</button>
    <div class="card" style="margin-top:10px;display:none" id="onlineBox"><h2>Open Food Facts</h2><ul class="res" id="remote"></ul></div>
    <button class="btn sec" id="alcBtn">🍺 Bier of wijn: berekenen via alcohol%</button>
+   <button class="btn sec" id="recBtn">🍲 Eigen gerecht samenstellen</button>
    <button class="btn sec" id="manual">✏️ Zelf kcal ingeven</button>
   </div>
   <div id="stReview" style="display:none">
-   <div class="card"><h2>Gevonden<span id="rvTot" style="color:var(--g);font-size:15px;text-transform:none"></span></h2><ul id="rvList"></ul>
+   <div class="card" id="recBox" style="display:none"><h2>🍲 Eigen gerecht</h2>
+    <label>Naam van het gerecht</label><input id="recName" placeholder="bv. Stoofvlees">
+    <label>Voor hoeveel porties is de hele pot?</label>
+    <div class="stepper"><button id="rpMin">−</button><input id="recPor" inputmode="decimal"><button id="rpPlus">＋</button></div>
+    <div class="small" style="margin-top:10px">Zeg of typ de ingrediënten van de <b>hele pot</b>, bv. "1 kg rundvlees, 2 uien, 33 cl bier, 2 eetlepels bloem". De app deelt het totaal door het aantal porties.</div>
+   </div>
+   <div class="card"><h2 id="rvHead">Gevonden<span id="rvTot" style="color:var(--g);font-size:15px;text-transform:none"></span></h2><ul id="rvList"></ul>
     <div class="small" style="margin-top:6px">Pas de hoeveelheid aan met − / + of een portieknop. Tik op de naam om alles te wijzigen.</div></div>
-   <label>Maaltijd</label><div class="chips" id="rvMeals"></div>
+   <div id="rvMealBox"><label>Maaltijd</label><div class="chips" id="rvMeals"></div></div>
    <button class="btn" id="rvAdd">Alles toevoegen</button>
    <button class="btn sec" id="rvMore">🎤 Nog iets inspreken of typen</button>
   </div>
@@ -299,6 +306,7 @@ li.rv{display:block;padding:12px 2px}
 <div class="toast" id="toast"></div>
 
 <script src="voeding.js"></script>
+<script src="gerechten.js"></script>
 <script>
 'use strict';
 const KEY='calorieteller_v1';
@@ -593,11 +601,14 @@ $('shClose').onclick=closeSheet;
 const stepNow=()=>['search','review','portion'].find(s=>$('st'+s.charAt(0).toUpperCase()+s.slice(1)).style.display!=='none');
 $('shBack').onclick=()=>{const s=stepNow();
  if(SH.rvIdx!=null&&s!=='review'){SH.rvIdx=null;showStep('review');renderReview()}
+ else if(SH.recipe&&s==='search'){showStep('review');renderReview()}
+ else if(SH.recipe&&s==='review')endRecipe(null); // gerecht annuleren
  else if(s==='portion'&&SH.editIdx==null)showStep(SH.review.length?'review':'search');
  else if(s==='search'&&SH.review.length)showStep('review');
  else closeSheet()};
 function showStep(s){$('stSearch').style.display=s==='search'?'block':'none';$('stReview').style.display=s==='review'?'block':'none';$('stPortion').style.display=s==='portion'?'block':'none';
- $('shTitle').textContent=s==='search'?'Toevoegen':s==='review'?'Controleren':SH.editIdx!=null||SH.rvIdx!=null?'Aanpassen':'Hoeveel?'}
+ $('shTitle').textContent=s==='search'?(SH.recipe?'Ingrediënt zoeken':'Toevoegen'):s==='review'?(SH.recipe?'Gerecht samenstellen':'Controleren'):SH.editIdx!=null||SH.rvIdx!=null?'Aanpassen':'Hoeveel?';
+ $('recBtn').style.display=SH.recipe?'none':'block'}
 
 const NW={een:1,'één':1,eén:1,twee:2,drie:3,vier:4,vijf:5,zes:6,zeven:7,acht:8,negen:9,tien:10,half:.5,halve:.5,anderhalf:1.5,anderhalve:1.5};
 function parseQty(s){
@@ -607,7 +618,7 @@ function parseQty(s){
   const v=m[1]?num(m[1])??NW[m[1].toLowerCase()]:1,short=/^(el|kl|tl)$/i.test(m[2]);
   if(v!=null&&v>0&&v<50&&(!short||m[1]))return{n:v,grams:null,term:m[3].trim(),spoon:/^(koffie|thee|kl|tl)/i.test(m[2])?'kl':'el'};
  }
- if((m=s.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|cl|dl|l|liter)\.?\s+(?:van\s+)?(.+)$/i))){const u=m[2].toLowerCase();grams=num(m[1])*({cl:10,dl:100,l:1000,liter:1000}[u]||1);s=m[3]}
+ if((m=s.match(/^(\d+(?:[.,]\d+)?|een|één|half|halve|anderhalve)\s*(g|gr|gram|kg|kilo|ml|cl|dl|l|liter)\.?\s+(?:van\s+)?(.+)$/i))){const u=m[2].toLowerCase();grams=(num(m[1])??NW[m[1].toLowerCase()])*({kg:1000,kilo:1000,cl:10,dl:100,l:1000,liter:1000}[u]||1);s=m[3]}
  else if((m=s.match(/^(\d+(?:[.,]\d+)?|[a-zéë]+)\s*(?:x\s+|\s+)(.+)$/i))){const v=num(m[1])??NW[m[1].toLowerCase()];if(v!=null&&v>0&&v<50){n=v;s=m[2]}}
  // maat vooraan: "kom soep", "glas wijn", "2 tassen koffie" → maat apart, product blijft over
  let unit=null;
@@ -620,7 +631,7 @@ function parseQty(s){
 const UNITW={kom:'kom',kommen:'kom',kommetje:'kom',kommetjes:'kom',glas:'glas',glazen:'glas',glaasje:'glas',glaasjes:'glas',tas:'kop',tassen:'kop',tasje:'kop',tasjes:'kop',kop:'kop',koppen:'kop',kopje:'kop',kopjes:'kop',blik:'blik',blikje:'blik',blikjes:'blik',fles:'fles',flesje:'fles',flesjes:'fles',potje:'potje',potjes:'potje',snee:'snee',sneetje:'snee',sneetjes:'snee',sneden:'snee',stuk:'stuk',stuks:'stuk',stukje:'stuk',stukjes:'stuk',bord:'bord',borden:'bord',bordje:'bord',portie:'portie',porties:'portie'};
 // eenvoudige Nederlandse stam: meervoud/verkleinwoord eraf, dubbele medeklinker inkorten (boterhammen → boterham)
 // (eitje → ei, frietjes → friet)
-const stem=w=>{let s=w.replace(/([aeiou])tjes?$/,'$1').replace(/(jes|je|en|s)$/,'');if(s.length<3)s=w.replace(/s$/,'');if(/([^aeiou])\1$/.test(s))s=s.slice(0,-1);return s};
+const stem=w=>{let s=w.replace(/([aeiou])tjes?$/,'$1').replace(/(jes|je|en|s)$/,'');if(s.length<2)s=w.replace(/s$/,'');if(/([^aeiou])\1$/.test(s))s=s.slice(0,-1);return s};
 const tokens=t=>norm(t).split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!['met','van','een','het','zonder','wat','stuk','stukje','stukjes','beetje','glas','glazen','kop','tas','kopje','potje','potjes','pot','pak','pakje','flesje','blikje','zakje','bakje'].includes(w)).map(stem);
 const score=(tk,hay)=>tk.reduce((a,w,i)=>a+(hay.includes(w)?(i===0?1.5:1):0),0);
 function renderQueue(){$('queue').innerHTML=SH.queue.length?'<span class="small">Nog te doen:</span>'+SH.queue.map((q,i)=>`<button class="chip" data-i="${i}">${esc(q)}</button>`).join(''):'';
@@ -628,7 +639,7 @@ function renderQueue(){$('queue').innerHTML=SH.queue.length?'<span class="small"
 function setQuery(q){$('q').value=q;$('onlineBox').style.display='none';renderQueue();const n=renderLocal();if(!n&&navigator.onLine)offSearch()}
 /* ingebouwde lijst (voeding.js, USDA) + extra zoekwoorden */
 const ALIAS={'Wit brood':'boterham sandwich toast','Bruin/volkorenbrood':'boterham bruin grijs','Meergranenbrood':'boterham','Stokbrood':'baguette','Pistolet':'broodje','Pitabrood':'pita','Koffiekoek (met fruit)':'koffiekoek','Havermout (droog)':'havervlokken','Havermoutpap (met water)':'pap','Granola / krokante muesli':'muesli','Halvarine (40%)':'smeer','Minarine (60%)':'smeer becel','Chocopasta (hazelnoot)':'choco nutella','Confituur':'jam','Hesp':'ham','Gouda (kaas)':'kaas jonge','Emmentaler (kaas)':'kaas','Brie':'kaas','Camembert':'kaas','Mozzarella':'kaas','Parmezaan':'kaas','Feta':'kaas','Roomkaas':'kaas philadelphia','Cottage cheese':'kaas','Ricotta':'kaas','Ei, gekookt':'eitje','Spiegelei':'eitje','Roerei':'eitje','Room (vloeibaar)':'kookroom','Koffiemelk / koffieroom':'melk','Vanille-ijs':'ijsje roomijs','Aardappelen, gekookt':'patatten','Frieten (frituur)':'friet frietjes patat','Ovenfrieten':'friet frietjes','Rijst wit, gekookt':'rijst','Pasta, gekookt':'spaghetti macaroni penne','Rundergehakt, gebakken':'gehakt','Varkensgehakt, gebakken':'gehakt','Gehaktballetjes':'balletjes','Steak':'biefstuk','Spek, gebakken':'spekjes bacon','Braadworst':'worst','Knakworst':'worst frankfurter','Zalm, gebakken':'vis','Kabeljauw':'vis','Garnalen':'grijze','Mosselen':'moules','Vissticks':'vis','Spaghetti bolognese':'spaghetti','Pizza (kaas)':'pizza',"Pinda's":'nootjes','Chips':'chipjes','Melkchocolade':'chocolade','Pure chocolade':'chocolade','Boterkoekjes':'koekje','Chocoladekoekjes':'koekje','Gemberkoekjes':'koekje','Cake':'cake','Gummisnoep':'snoep','Mueslireep':'reep','Koffie, zwart':'koffie','Cola zero/light':'cola','Frisdrank sinaas':'fanta sinas','Sinaasappelsap':'appelsiensap fruitsap','Appelsap':'fruitsap','Bier (pils)':'pintje','Rode wijn':'wijn','Witte wijn':'wijn','Sterkedrank':'jenever whisky gin rum vodka','Mayonaise':'mayo','Vinaigrette':'dressing','Tomatensaus':'saus','Sinaasappel':'appelsien','Mandarijn':'clementine','Aardbeien':'aardbei','Druiven':'druif'};
-const BASEL=(typeof BASE!=='undefined'?BASE:[]).map(([name,per100,portions,id])=>({key:'usda:'+id,name,per100,portions,src:'USDA',hay:norm(name+' '+(ALIAS[name]||''))}));
+const BASEL=[...(typeof BASE!=='undefined'?BASE:[]),...(typeof DISHES!=='undefined'?DISHES:[])].map(([name,per100,portions,id,extra])=>({key:'usda:'+id,name,per100,portions,src:'USDA',hay:norm(name+' '+(ALIAS[name]||'')+' '+(extra||''))}));
 function renderLocal(){
  const {term}=parseQty($('q').value),tk=tokens(term);
  let favs=Object.entries(S.foods).map(([k,f])=>({k,f,hay:norm(f.name+' '+(f.brand||'')+' '+(ALIAS[f.name]||''))}));
@@ -655,7 +666,7 @@ $('autoBtn').onclick=submitTyped;
 
 /* ---------- automatisch invullen ---------- */
 // voorkeur bij een algemeen woord ("kaas", "melk" …); wat je zelf al eens koos, wint altijd
-const PREF0={kaas:'Emmentaler (kaas)',melk:'Halfvolle melk',boterham:'Bruin/volkorenbrood',brood:'Bruin/volkorenbrood',sandwich:'Wit brood',wijn:'Rode wijn',koffie:'Koffie, zwart',bier:'Bier (pils)',pintje:'Bier (pils)',pint:'Bier (pils)',eitje:'Ei, gekookt',ei:'Ei, gekookt',friet:'Frieten (frituur)',frietje:'Frieten (frituur)',rijst:'Rijst wit, gekookt',pasta:'Pasta, gekookt',spaghetti:'Spaghetti bolognese',chocolade:'Melkchocolade',choco:'Chocopasta (hazelnoot)',koek:'Boterkoekjes',koekje:'Boterkoekjes',yoghurt:'Yoghurt natuur (vol)',water:'Water',thee:'Thee',cola:'Cola',boter:'Boter',ham:'Hesp',aardappel:'Aardappelen, gekookt',patat:'Aardappelen, gekookt',gehakt:'Rundergehakt, gebakken',worst:'Braadworst',vis:'Kabeljauw',noot:'Amandelen',sap:'Sinaasappelsap',fruitsap:'Sinaasappelsap'};
+const PREF0={kaas:'Emmentaler (kaas)',melk:'Halfvolle melk',boterham:'Bruin/volkorenbrood',brood:'Bruin/volkorenbrood',sandwich:'Wit brood',wijn:'Rode wijn',koffie:'Koffie, zwart',bier:'Bier (pils)',pintje:'Bier (pils)',pint:'Bier (pils)',eitje:'Ei, gekookt',ei:'Ei, gekookt',friet:'Frieten (frituur)',frietje:'Frieten (frituur)',rijst:'Rijst wit, gekookt',pasta:'Pasta, gekookt',spaghetti:'Spaghetti bolognese',chocolade:'Melkchocolade',choco:'Chocopasta (hazelnoot)',koek:'Boterkoekjes',koekje:'Boterkoekjes',yoghurt:'Yoghurt natuur (vol)',water:'Water',thee:'Thee',cola:'Cola',boter:'Boter',ham:'Hesp',aardappel:'Aardappelen, gekookt',patat:'Aardappelen, gekookt',gehakt:'Rundergehakt, gebakken',spek:'Spek, gebakken',kip:'Kippenbout',soep:'Groentesoep',worst:'Braadworst',vis:'Kabeljauw',noot:'Amandelen',sap:'Sinaasappelsap',fruitsap:'Sinaasappelsap'};
 const PREF=Object.fromEntries(Object.entries(PREF0).map(([k,v])=>[stem(k),v]));
 // standaardportie: liefst "middelgroot", anders snee/stuk, anders de eerste
 // eetlepel en koffielepel voor elk product: liefst het gewicht uit de USDA-tabel, anders 15 ml / 5 ml (1 ml = 1 g)
@@ -668,12 +679,13 @@ const defPortion=por=>(por||[]).find(p=>/middelgroot/.test(p[0]))||(por||[]).fin
 /* ---------- snelle porties ---------- */
 // dranken krijgen glasmaten, de rest eet- en koffielepel; 1 ml telt als 1 g
 const DRINK=[['15 cl',150],['20 cl',200],['25 cl',250],['33 cl',330],['50 cl',500]];
-const isDrink=pr=>pr.unitKcal==null&&(!!pr.drink||(pr.portions||[]).some(p=>/glas|kop|tas|blik|fles|\bml\b|\bcl\b/i.test(p[0])&&!/scheut/i.test(p[0])));
+const isDrink=pr=>pr.unitKcal==null&&(!!pr.drink||(pr.portions||[]).some(p=>/glas|kop|tas|blik|fles|\bml\b|\bcl\b/i.test(p[0])&&!/scheut|kom|portie/i.test(p[0])));
+const isBowl=pr=>(pr.portions||[]).some(p=>/kom|bord/i.test(p[0])); // soep, stoofpot …: geen lepels
 function porOpts(pr){ // [label, gram], eigen porties van het product eerst
  if(pr.unitKcal!=null)return[];
  const out=[...(pr.portions||[])],add=p=>{if(!out.some(o=>o[1]===p[1]))out.push(p)};
  if(pr.serving&&pr.serving!==100)add(['portie (etiket)',pr.serving]);
- (isDrink(pr)?DRINK:spoonsFor(pr.portions)).forEach(add);
+ (isDrink(pr)?DRINK:isBowl(pr)?[]:spoonsFor(pr.portions)).forEach(add);
  add(['100 g',100]);
  return out}
 const porLabel=(pr,g)=>{const p=porOpts(pr).find(p=>p[1]===g);return p&&!/^\d+ g$/.test(p[0])?p[0]:null};
@@ -708,7 +720,8 @@ function candidates(text,hint){
  const chosen=(S.picks||{})[tk.join(' ')],out=[];
  Object.entries(S.foods).forEach(([k,f])=>{const sc=score2(tk,norm(f.name+' '+(f.brand||'')+' '+(ALIAS[f.name]||'')),f.name,hint);if(sc>0||k===chosen)out.push({prod:{...f,key:k},score:sc+1+Math.min(1,(f.uses||0)/5)+(k===chosen?5:0),sure:k===chosen})});
  const own=new Set(out.map(o=>o.prod.key));
- BASEL.forEach(b=>{if(own.has(b.key))return;const sc=score2(tk,b.hay,b.name,hint);if(sc>0)out.push({prod:b,score:sc+(b.key===chosen?5:0),sure:b.key===chosen})});
+ const raw=SH.recipe?1.5:0; // bij een gerecht samenstellen: rauwe/droge ingrediënten eerst
+ BASEL.forEach(b=>{if(own.has(b.key))return;const sc=score2(tk,b.hay,b.name,hint);if(sc>0)out.push({prod:b,score:sc+(b.key===chosen?5:0)+(/\b(rauw|droog)\b/i.test(b.name)?raw:0),sure:b.key===chosen})});
  return out.sort((a,b)=>b.score-a.score||a.prod.name.length-b.prod.name.length);
 }
 // maak een dag-item uit product + hoeveelheid (zelfde vorm als bij handmatig toevoegen)
@@ -746,14 +759,55 @@ function renderReview(){
  $('rvMeals').innerHTML=MEALS.map(([k,l])=>`<button class="chip ${k===SH.meal?'on':''}" data-m="${k}">${l}</button>`).join('');
  $('rvMeals').querySelectorAll('button').forEach(b=>b.onclick=()=>{SH.meal=b.dataset.m;renderReview()});
  const ok=rv.filter(r=>r.it).length;$('rvAdd').disabled=!ok;$('rvAdd').textContent=ok?`Alles toevoegen (${ok})`:'Alles toevoegen';
+ // gerecht samenstellen: zelfde lijst, maar met naam en porties en zonder maaltijdkeuze
+ const rec=!!SH.recipe;
+ $('recBox').style.display=rec?'block':'none';$('rvMealBox').style.display=rec?'none':'block';
+ $('rvHead').firstChild.textContent=rec?'Ingrediënten (hele pot)':'Gevonden';
+ $('rvMore').textContent=rec?'🎤 Ingrediënten inspreken of typen':'🎤 Nog iets inspreken of typen';
+ if(rec){const por=num($('recPor').value)||1;
+  $('rvAdd').disabled=!ok;$('rvAdd').textContent=ok?`Gerecht bewaren · 1 portie = ${f0(tot/por)} kcal`:'Voeg eerst ingrediënten toe'}
 }
+// ---------- eigen gerecht ----------
+// back: de controlelijst waar we vandaan kwamen (bij "❓ niet gevonden" → "als gerecht samenstellen")
+function startRecipe(name,back){
+ SH.recipe={back};SH.review=[];SH.rvIdx=null;
+ $('recName').value=name?name.charAt(0).toUpperCase()+name.slice(1):'';$('recPor').value='4';
+ showStep('review');renderReview();
+ setTimeout(()=>$(name?'recPor':'recName').focus(),50);
+}
+function endRecipe(newItemProd){
+ const back=SH.recipe&&SH.recipe.back;SH.recipe=null;
+ if(back){SH.review=back.review;SH.meal=back.meal;
+  if(newItemProd){const r=SH.review[back.idx];r.prod=newItemProd;r.it=makeItem(newItemProd,1,null,SH.meal);r.alts=[];r.flag=null}
+  showStep('review');renderReview()}
+ else if(newItemProd){SH.review=[];pick(newItemProd)}
+ else{SH.review=[];showStep('search');renderLocal()}
+}
+function saveRecipe(){
+ const name=$('recName').value.trim(),por=num($('recPor').value)||1,ok=SH.review.filter(r=>r.it);
+ if(!name){toast('Geef het gerecht een naam');$('recName').focus();return}
+ if(!ok.length)return;
+ const tot=ok.reduce((a,r)=>a+r.it.kcal,0),key='rec:'+norm(name),nm=name.charAt(0).toUpperCase()+name.slice(1);
+ S.foods[key]={name:nm,brand:'Eigen gerecht',unitKcal:Math.round(tot/por),
+  recipe:{por,tot:Math.round(tot),items:ok.map(r=>({name:r.it.name,amt:amountTxt(r.it),kcal:r.it.kcal}))},
+  uses:(S.foods[key]||{}).uses||0,last:Date.now()};
+ (S.picks||(S.picks={}))[tokens(nm).join(' ')]=key;
+ save();toast(`🍲 ${nm} bewaard: 1 portie = ${f0(tot/por)} kcal`);
+ endRecipe({...S.foods[key],key});
+}
+$('recBtn').onclick=()=>startRecipe(parseQty($('q').value).term,null);
+$('recPor').addEventListener('input',renderReview);
+$('rpMin').onclick=()=>{const n=num($('recPor').value)||1;$('recPor').value=cv(Math.max(1,n-1));renderReview()};
+$('rpPlus').onclick=()=>{const n=num($('recPor').value)||0;$('recPor').value=cv(n+1);renderReview()};
 // één regel van de controlelijst: naam + kcal, dan −/+ en porties, en bij twijfel keuzeknoppen
 function rvRow(r,i){
  const chip=(act,val,label,on)=>`<button class="chip${on?' on':''}" data-act="${act}" data-v="${val}">${esc(label)}</button>`;
  const altBox=(title,alts)=>`<div class="alt">${title}<div class="chips">${alts.map((p,j)=>chip('alt',j,p.name)).join('')}${chip('other',0,'Andere… 🔍')}</div></div>`;
+ // niet gevonden: kies een gelijkaardig product, zoek, geef de kcal zelf in of stel het samen als gerecht
  if(!r.it)return`<li class="rv" data-r="${i}"><div class="rvh" data-act="other"><span class="nm"><b style="color:var(--o)">❓ “${esc(r.text)}”</b><small>Niet gevonden</small></span><button class="x" data-act="del" aria-label="Verwijderen">✕</button></div>`
-  +altBox(r.alts.length?'Bedoel je:':'Zoek het product of geef de kcal zelf in:',r.alts)+'</li>';
+  +`<div class="alt">${r.alts.length?'Bedoel je:':'Wat wil je doen?'}<div class="chips">${r.alts.map((p,j)=>chip('alt',j,p.name)).join('')}${chip('other',0,'Zoeken 🔍')}${chip('manual',0,'✏️ Zelf kcal ingeven')}${SH.recipe?'':chip('recipe',0,'🍲 Als gerecht samenstellen')}</div></div></li>`;
  const it=r.it,opts=porOpts(r.prod);
+ if(it.g!=null&&!opts.some(o=>o[1]===it.g))opts.unshift([cv(it.g)+' g',it.g]); // huidige hoeveelheid altijd zichtbaar
  return`<li class="rv" data-r="${i}">
   <div class="rvh" data-act="open"><span class="nm"><b>${esc(it.name)}</b><small>${esc(amountTxt(it))}</small>${r.flag?`<small style="color:var(--o)">⚠️ ${esc(r.flag)}</small>`:''}</span><span class="v">${f0(it.kcal)} kcal</span><button class="x" data-act="del" aria-label="Verwijderen">✕</button></div>
   <div class="ctl"><div class="mini"><button data-act="min" aria-label="Minder">−</button><b>${cv(it.n)}</b><button data-act="plus" aria-label="Meer">＋</button></div>
@@ -766,6 +820,8 @@ $('rvList').onclick=e=>{
  if(a==='del')SH.review.splice(i,1);
  else if(a==='open'){SH.rvIdx=i;$('q').value=r.text;pick(r.prod,r.it);return}
  else if(a==='other'){SH.rvIdx=i;showStep('search');$('q').value=parseQty(r.text).term;$('autoBtn').style.display='none';renderLocal();return}
+ else if(a==='manual'){SH.rvIdx=i;$('q').value=parseQty(r.text).term;pick({});return}
+ else if(a==='recipe'){startRecipe(parseQty(r.text).term,{review:SH.review,idx:i,meal:SH.meal});return}
  else if(a==='min'||a==='plus'){const n=r.it.n;setRow(r,r.prod,a==='plus'?(n<1?n+.5:n+1):(n>1?n-1:Math.max(.5,n-.5)),r.it.g)}
  else if(a==='g')setRow(r,r.prod,r.it.n,+b.dataset.v);
  else if(a==='alt'){const p=r.alts[+b.dataset.v],old=r.prod;const {n,g,flag}=amountFor(p,parseQty(r.text),r.topping);
@@ -777,6 +833,7 @@ function saveFav(it,pr,isNew){
  if(it.unitKcal==null)delete S.foods[it.key].unitKcal;
 }
 $('rvAdd').onclick=()=>{
+ if(SH.recipe){saveRecipe();return}
  const d=mutDay(cur),ok=SH.review.filter(r=>r.it);if(!ok.length)return;
  ok.forEach(r=>{r.it.meal=SH.meal;d.food.push(r.it);saveFav(r.it,r.prod||{},true);
   const k=pickKey(r.text);if(k)(S.picks||(S.picks={}))[k]=r.it.key}); // onthoud welk product bij dit woord hoort
