@@ -102,6 +102,20 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
 #scan video{width:100%;max-height:75vh;object-fit:cover}
 #scan p{color:#fff}
 .spin{text-align:center;color:var(--m);padding:16px}
+/* controlelijst: één blok per regel */
+li.rv{display:block;padding:12px 2px}
+.rvh{display:flex;align-items:flex-start;gap:8px;cursor:pointer}
+.rvh .nm b{display:block;font-size:16px}
+.rvh .nm small{white-space:normal}
+.rv .ctl{display:flex;align-items:center;gap:8px;margin-top:8px}
+.mini{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.mini button{border:0;width:34px;height:34px;border-radius:10px;background:var(--g2);color:var(--g);font-size:20px;font-weight:700}
+.mini b{min-width:30px;text-align:center;font-size:16px}
+.pc{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none}
+.pc::-webkit-scrollbar{display:none}
+.pc .chip,.alt .chip{white-space:nowrap;padding:6px 10px;font-size:13px}
+.alt{margin-top:8px;padding:8px 10px;border-radius:12px;background:#FFF5EB;font-size:13px;color:#8A4B0F}
+.alt .chips{margin:6px 0 0}
 </style>
 </head>
 <body>
@@ -248,7 +262,7 @@ details summary{font-weight:700;cursor:pointer;color:var(--g);padding:2px 0}
   </div>
   <div id="stReview" style="display:none">
    <div class="card"><h2>Gevonden<span id="rvTot" style="color:var(--g);font-size:15px;text-transform:none"></span></h2><ul id="rvList"></ul>
-    <div class="small" style="margin-top:6px">Tik op een regel om de hoeveelheid of het product aan te passen.</div></div>
+    <div class="small" style="margin-top:6px">Pas de hoeveelheid aan met − / + of een portieknop. Tik op de naam om alles te wijzigen.</div></div>
    <label>Maaltijd</label><div class="chips" id="rvMeals"></div>
    <button class="btn" id="rvAdd">Alles toevoegen</button>
    <button class="btn sec" id="rvMore">🎤 Nog iets inspreken of typen</button>
@@ -427,7 +441,7 @@ function renderToday(){
 }
 function amountTxt(f){
  if(f.unitKcal!=null)return `${cv(f.n)} × ${f0(f.unitKcal)} kcal`;
- const amt=f.pl?(/\(/.test(f.pl)?f.pl:f.pl+' ('+cv(f.g)+' g)'):cv(f.g)+' g';
+ const amt=f.pl?(/\(|\bcl\b|\bml\b/.test(f.pl)?f.pl:f.pl+' ('+cv(f.g)+' g)'):cv(f.g)+' g';
  return `${f.n!=1?cv(f.n)+' × ':''}${amt} · ${f0(f.per100)} kcal/100 g`;
 }
 ['polTot','polAct','note'].forEach(id=>$(id).addEventListener('change',()=>{
@@ -595,13 +609,18 @@ function parseQty(s){
  }
  if((m=s.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|cl|dl|l|liter)\.?\s+(?:van\s+)?(.+)$/i))){const u=m[2].toLowerCase();grams=num(m[1])*({cl:10,dl:100,l:1000,liter:1000}[u]||1);s=m[3]}
  else if((m=s.match(/^(\d+(?:[.,]\d+)?|[a-zéë]+)\s*(?:x\s+|\s+)(.+)$/i))){const v=num(m[1])??NW[m[1].toLowerCase()];if(v!=null&&v>0&&v<50){n=v;s=m[2]}}
+ // maat vooraan: "kom soep", "glas wijn", "2 tassen koffie" → maat apart, product blijft over
+ let unit=null;
+ if((m=s.match(/^([a-zë]+)\s+(?:van\s+)?(.+)$/i))&&UNITW[m[1].toLowerCase()]){unit=UNITW[m[1].toLowerCase()];s=m[2]}
  // gewicht per stuk achteraan: "2 potjes yoghurt van 125 g", "yoghurt 125 gram"
  let unitG=null;
  if(grams==null&&(m=s.match(/^(.+?)(?:\s+(?:van|à|a))?\s+(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml|cl)\.?$/i))){unitG=num(m[2])*(m[3].toLowerCase()==='cl'?10:1);s=m[1]}
- return{n,grams,unitG,term:s.trim()};
+ return{n,grams,unitG,unit,term:s.trim()};
 }
+const UNITW={kom:'kom',kommen:'kom',kommetje:'kom',kommetjes:'kom',glas:'glas',glazen:'glas',glaasje:'glas',glaasjes:'glas',tas:'kop',tassen:'kop',tasje:'kop',tasjes:'kop',kop:'kop',koppen:'kop',kopje:'kop',kopjes:'kop',blik:'blik',blikje:'blik',blikjes:'blik',fles:'fles',flesje:'fles',flesjes:'fles',potje:'potje',potjes:'potje',snee:'snee',sneetje:'snee',sneetjes:'snee',sneden:'snee',stuk:'stuk',stuks:'stuk',stukje:'stuk',stukjes:'stuk',bord:'bord',borden:'bord',bordje:'bord',portie:'portie',porties:'portie'};
 // eenvoudige Nederlandse stam: meervoud/verkleinwoord eraf, dubbele medeklinker inkorten (boterhammen → boterham)
-const stem=w=>{let s=w.replace(/(tjes|jes|en|s)$/,'');if(s.length<3)s=w;if(/([^aeiou])\1$/.test(s))s=s.slice(0,-1);return s};
+// (eitje → ei, frietjes → friet)
+const stem=w=>{let s=w.replace(/([aeiou])tjes?$/,'$1').replace(/(jes|je|en|s)$/,'');if(s.length<3)s=w.replace(/s$/,'');if(/([^aeiou])\1$/.test(s))s=s.slice(0,-1);return s};
 const tokens=t=>norm(t).split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!['met','van','een','het','zonder','wat','stuk','stukje','stukjes','beetje','glas','glazen','kop','tas','kopje','potje','potjes','pot','pak','pakje','flesje','blikje','zakje','bakje'].includes(w)).map(stem);
 const score=(tk,hay)=>tk.reduce((a,w,i)=>a+(hay.includes(w)?(i===0?1.5:1):0),0);
 function renderQueue(){$('queue').innerHTML=SH.queue.length?'<span class="small">Nog te doen:</span>'+SH.queue.map((q,i)=>`<button class="chip" data-i="${i}">${esc(q)}</button>`).join(''):'';
@@ -645,20 +664,51 @@ const spoonsFor=por=>{const has=re=>(por||[]).some(p=>re.test(p[0]));
 const allPor=por=>(por||[]).concat(spoonsFor(por));
 const spoonG=(pr,sp)=>sp?(allPor(pr.portions).find(p=>(sp==='el'?/eetlepel/:/koffielepel|theelepel/).test(p[0]))||[])[1]:null;
 const defPortion=por=>(por||[]).find(p=>/middelgroot/.test(p[0]))||(por||[]).find(p=>/^1 (snee|stuk)$/.test(p[0]))||(por||[])[0];
+
+/* ---------- snelle porties ---------- */
+// dranken krijgen glasmaten, de rest eet- en koffielepel; 1 ml telt als 1 g
+const DRINK=[['15 cl',150],['20 cl',200],['25 cl',250],['33 cl',330],['50 cl',500]];
+const isDrink=pr=>pr.unitKcal==null&&(!!pr.drink||(pr.portions||[]).some(p=>/glas|kop|tas|blik|fles|\bml\b|\bcl\b/i.test(p[0])&&!/scheut/i.test(p[0])));
+function porOpts(pr){ // [label, gram], eigen porties van het product eerst
+ if(pr.unitKcal!=null)return[];
+ const out=[...(pr.portions||[])],add=p=>{if(!out.some(o=>o[1]===p[1]))out.push(p)};
+ if(pr.serving&&pr.serving!==100)add(['portie (etiket)',pr.serving]);
+ (isDrink(pr)?DRINK:spoonsFor(pr.portions)).forEach(add);
+ add(['100 g',100]);
+ return out}
+const porLabel=(pr,g)=>{const p=porOpts(pr).find(p=>p[1]===g);return p&&!/^\d+ g$/.test(p[0])?p[0]:null};
+// maat uit de zin ("kom", "glas", "tas" …) → de passende portie van het product
+const UNITRE={kom:/kom/,glas:/glas/,kop:/kop|tas/,blik:/blik/,fles:/fles/,potje:/potje|uit pak|verpakking/,snee:/snee/,stuk:/stuk|middelgroot/,bord:/bord|portie/,portie:/portie/};
+const unitPor=(pr,u)=>{if(!u||!UNITRE[u])return null;const p=(pr.portions||[]).find(p=>UNITRE[u].test(p[0]));return p?p[1]:(u==='glas'&&isDrink(pr)?200:null)};
+// hoeveelheid voor een product uit wat je zei; "met choco" zonder maat = 1 eetlepel
+function amountFor(pr,q,topping){
+ let n=q.n||1,flag=null;
+ if(pr.unitKcal!=null)return{n,g:null,flag};
+ const dp=defPortion(pr.portions);
+ let g=q.grams||q.unitG||spoonG(pr,q.spoon)||unitPor(pr,q.unit)||pr.g||(topping&&!dp?spoonG(pr,'el'):null)||(dp&&dp[1])||pr.serving||null;
+ if(q.grams)n=1;
+ if(g==null){g=100;flag='Hoeveelheid geschat op 100 g – kies hieronder de juiste'}
+ return{n,g,flag}}
+
 const words=h=>h.split(/[^a-z0-9]+/).filter(Boolean);
 function score2(tk,hay,name,hint){
  const ws=words(hay);let s=0;
  tk.forEach((w,i)=>{const wt=i===0?1.5:1;
-  if(ws.includes(w))s+=2.2*wt;else if(ws.some(x=>x.startsWith(w)))s+=2*wt;else if(hay.includes(w))s+=wt;
+  if(ws.includes(w))s+=2.2*wt;
+  else if(ws.some(x=>x.startsWith(w)))s+=2*wt;
+  else if(w.length>=4&&ws.some(x=>x.endsWith(w)))s+=2*wt; // samengestelde woorden: soep → groentesoep
+  else if(hay.includes(w))s+=wt;
   if(PREF[w]===name)s+=1});
  (hint||[]).forEach(w=>{if(hay.includes(w))s+=1.5});
  return s}
+// wat je eerder bij hetzelfde woord koos, wint en geeft geen twijfel meer
+const pickKey=text=>tokens(parseQty(text).term).join(' ');
 function candidates(text,hint){
  const tk=tokens(parseQty(text).term);if(!tk.length)return[];
- const out=[];
- Object.entries(S.foods).forEach(([k,f])=>{const sc=score2(tk,norm(f.name+' '+(f.brand||'')+' '+(ALIAS[f.name]||'')),f.name,hint);if(sc>0)out.push({prod:{...f,key:k},score:sc+1+Math.min(1,(f.uses||0)/5)})});
+ const chosen=(S.picks||{})[tk.join(' ')],out=[];
+ Object.entries(S.foods).forEach(([k,f])=>{const sc=score2(tk,norm(f.name+' '+(f.brand||'')+' '+(ALIAS[f.name]||'')),f.name,hint);if(sc>0||k===chosen)out.push({prod:{...f,key:k},score:sc+1+Math.min(1,(f.uses||0)/5)+(k===chosen?5:0),sure:k===chosen})});
  const own=new Set(out.map(o=>o.prod.key));
- BASEL.forEach(b=>{if(own.has(b.key))return;const sc=score2(tk,b.hay,b.name,hint);if(sc>0)out.push({prod:b,score:sc})});
+ BASEL.forEach(b=>{if(own.has(b.key))return;const sc=score2(tk,b.hay,b.name,hint);if(sc>0)out.push({prod:b,score:sc+(b.key===chosen?5:0),sure:b.key===chosen})});
  return out.sort((a,b)=>b.score-a.score||a.prod.name.length-b.prod.name.length);
 }
 // maak een dag-item uit product + hoeveelheid (zelfde vorm als bij handmatig toevoegen)
@@ -666,27 +716,25 @@ function makeItem(pr,n,g,meal){
  const it={name:pr.name,brand:pr.brand||'',meal,n,key:pr.key};
  if(pr.unitKcal!=null){it.unitKcal=pr.unitKcal;it.kcal=Math.round(n*pr.unitKcal);return it}
  it.g=g;it.per100=pr.per100;it.kcal=Math.round(n*g*(pr.per100||0)/100);
- const pl=allPor(pr.portions).find(p=>p[1]===g);if(pl)it.pl=pl[0];
+ const pl=porLabel(pr,g);if(pl)it.pl=pl;
  return it}
 function splitSpoken(t){
  const parts=[];
  t.split(/\s*(?:,|;|\.|\ben daarna\b|\ben ook\b|\bplus\b|\ben\b)\s*/i).map(s=>s.trim()).filter(s=>s.length>1).forEach(s=>{
   // "2 boterhammen met kaas" → "2 boterhammen" + "2 kaas" (met hint "boterham")
   const [a,...rest]=s.split(/\s+met\s+/i),n=parseQty(a).n;parts.push({text:a});
-  rest.forEach(r=>parts.push({text:n&&n!==1&&parseQty(r).n==null&&parseQty(r).grams==null?cv(n)+' '+r:r,hint:tokens(parseQty(a).term)}));
+  rest.forEach(r=>parts.push({text:n&&n!==1&&parseQty(r).n==null&&parseQty(r).grams==null?cv(n)+' '+r:r,hint:tokens(parseQty(a).term),topping:true}));
  });
  return parts}
 function autoFill(t){
  stopMic();
  const rows=splitSpoken(t).map(p=>{
-  const c=candidates(p.text,p.hint),best=c[0],q=parseQty(p.text);
-  if(!best||best.score<2)return{text:p.text,it:null,alts:c.slice(0,5).map(x=>x.prod)};
-  const pr=best.prod,por=pr.portions||[];
-  const dp=defPortion(por);
-  let n=q.n||1,g=q.grams||q.unitG||(pr.unitKcal==null&&spoonG(pr,q.spoon))||pr.g||(dp&&dp[1])||pr.serving||null,flag=null;
-  if(q.grams)n=1;
-  if(pr.unitKcal==null&&g==null){g=100;flag='gewicht geschat (100 g) – tik om aan te passen'}
-  return{text:p.text,prod:pr,it:makeItem(pr,n,g,SH.meal),flag};
+  const c=candidates(p.text,p.hint),best=c[0],q=parseQty(p.text),topping=!!p.topping;
+  if(!best||best.score<2)return{text:p.text,it:null,alts:c.slice(0,3).map(x=>x.prod),topping};
+  // twijfel: andere producten die bijna even goed passen, tonen we als keuzeknoppen
+  const alts=best.sure?[]:c.slice(1).filter(x=>x.score>=best.score-1).slice(0,3).map(x=>x.prod);
+  const {n,g,flag}=amountFor(best.prod,q,topping);
+  return{text:p.text,prod:best.prod,it:makeItem(best.prod,n,g,SH.meal),flag,alts,topping};
  });
  SH.review=SH.review.concat(rows);$('q').value='';$('autoBtn').style.display='none';
  showStep('review');renderReview();
@@ -694,24 +742,44 @@ function autoFill(t){
 function renderReview(){
  const rv=SH.review,tot=rv.reduce((a,r)=>a+(r.it?r.it.kcal:0),0);
  $('rvTot').textContent=rv.some(r=>r.it)?f0(tot)+' kcal':'';
- $('rvList').innerHTML=rv.map((r,i)=>r.it?
-  `<li data-r="${i}"><span class="nm">${esc(r.it.name)}<small>${esc(amountTxt(r.it))}</small>${r.flag?`<small style="color:var(--o)">⚠️ ${esc(r.flag)}</small>`:''}<small>“${esc(r.text)}”</small></span><span class="v">${f0(r.it.kcal)}</span><button class="x" data-x="${i}" aria-label="Verwijderen">✕</button></li>`:
-  `<li data-r="${i}"><span class="nm" style="color:var(--o)">❓ “${esc(r.text)}”<small>Niet gevonden – tik om te zoeken of zelf in te geven</small></span><button class="x" data-x="${i}" aria-label="Verwijderen">✕</button></li>`).join('')||'<li class="small">Niets meer in de lijst.</li>';
- $('rvList').querySelectorAll('[data-x]').forEach(b=>b.onclick=e=>{e.stopPropagation();SH.review.splice(+b.dataset.x,1);renderReview()});
- $('rvList').querySelectorAll('li[data-r]').forEach(li=>li.onclick=()=>{const i=+li.dataset.r,r=SH.review[i];SH.rvIdx=i;
-  if(r.it){$('q').value=r.text;pick(r.prod,r.it)}else{showStep('search');$('q').value=r.text;$('autoBtn').style.display='none';renderLocal()}});
+ $('rvList').innerHTML=rv.map(rvRow).join('')||'<li class="small">Niets meer in de lijst.</li>';
  $('rvMeals').innerHTML=MEALS.map(([k,l])=>`<button class="chip ${k===SH.meal?'on':''}" data-m="${k}">${l}</button>`).join('');
  $('rvMeals').querySelectorAll('button').forEach(b=>b.onclick=()=>{SH.meal=b.dataset.m;renderReview()});
  const ok=rv.filter(r=>r.it).length;$('rvAdd').disabled=!ok;$('rvAdd').textContent=ok?`Alles toevoegen (${ok})`:'Alles toevoegen';
 }
+// één regel van de controlelijst: naam + kcal, dan −/+ en porties, en bij twijfel keuzeknoppen
+function rvRow(r,i){
+ const chip=(act,val,label,on)=>`<button class="chip${on?' on':''}" data-act="${act}" data-v="${val}">${esc(label)}</button>`;
+ const altBox=(title,alts)=>`<div class="alt">${title}<div class="chips">${alts.map((p,j)=>chip('alt',j,p.name)).join('')}${chip('other',0,'Andere… 🔍')}</div></div>`;
+ if(!r.it)return`<li class="rv" data-r="${i}"><div class="rvh" data-act="other"><span class="nm"><b style="color:var(--o)">❓ “${esc(r.text)}”</b><small>Niet gevonden</small></span><button class="x" data-act="del" aria-label="Verwijderen">✕</button></div>`
+  +altBox(r.alts.length?'Bedoel je:':'Zoek het product of geef de kcal zelf in:',r.alts)+'</li>';
+ const it=r.it,opts=porOpts(r.prod);
+ return`<li class="rv" data-r="${i}">
+  <div class="rvh" data-act="open"><span class="nm"><b>${esc(it.name)}</b><small>${esc(amountTxt(it))}</small>${r.flag?`<small style="color:var(--o)">⚠️ ${esc(r.flag)}</small>`:''}</span><span class="v">${f0(it.kcal)} kcal</span><button class="x" data-act="del" aria-label="Verwijderen">✕</button></div>
+  <div class="ctl"><div class="mini"><button data-act="min" aria-label="Minder">−</button><b>${cv(it.n)}</b><button data-act="plus" aria-label="Meer">＋</button></div>
+   <div class="pc">${opts.map(([l,g])=>chip('g',g,l,it.g===g)).join('')}</div></div>
+  ${r.alts&&r.alts.length&&!r.chosen?altBox('Of bedoel je:',r.alts):''}</li>`}
+function setRow(r,pr,n,g){r.prod=pr;r.it=makeItem(pr,n,g,SH.meal);r.flag=null}
+$('rvList').onclick=e=>{
+ const b=e.target.closest('[data-act]');if(!b)return;
+ const li=b.closest('li[data-r]'),i=+li.dataset.r,r=SH.review[i],a=b.dataset.act;
+ if(a==='del')SH.review.splice(i,1);
+ else if(a==='open'){SH.rvIdx=i;$('q').value=r.text;pick(r.prod,r.it);return}
+ else if(a==='other'){SH.rvIdx=i;showStep('search');$('q').value=parseQty(r.text).term;$('autoBtn').style.display='none';renderLocal();return}
+ else if(a==='min'||a==='plus'){const n=r.it.n;setRow(r,r.prod,a==='plus'?(n<1?n+.5:n+1):(n>1?n-1:Math.max(.5,n-.5)),r.it.g)}
+ else if(a==='g')setRow(r,r.prod,r.it.n,+b.dataset.v);
+ else if(a==='alt'){const p=r.alts[+b.dataset.v],old=r.prod;const {n,g,flag}=amountFor(p,parseQty(r.text),r.topping);
+  setRow(r,p,n,g);r.flag=flag;r.alts=old?[old,...r.alts.filter(x=>x!==p)]:r.alts.filter(x=>x!==p);r.chosen=true}
+ renderReview()};
 function saveFav(it,pr,isNew){
  const old=S.foods[it.key]||{};
- S.foods[it.key]={name:it.name,brand:it.brand,code:pr.code||old.code||'',per100:it.per100??null,unitKcal:it.unitKcal??null,g:it.g??old.g??null,serving:pr.serving??old.serving??null,portions:pr.portions??old.portions??null,uses:(old.uses||0)+(isNew?1:0),last:Date.now()};
+ S.foods[it.key]={name:it.name,brand:it.brand,code:pr.code||old.code||'',per100:it.per100??null,unitKcal:it.unitKcal??null,g:it.g??old.g??null,serving:pr.serving??old.serving??null,portions:pr.portions??old.portions??null,drink:pr.drink??old.drink??undefined,uses:(old.uses||0)+(isNew?1:0),last:Date.now()};
  if(it.unitKcal==null)delete S.foods[it.key].unitKcal;
 }
 $('rvAdd').onclick=()=>{
  const d=mutDay(cur),ok=SH.review.filter(r=>r.it);if(!ok.length)return;
- ok.forEach(r=>{r.it.meal=SH.meal;d.food.push(r.it);saveFav(r.it,r.prod||{},true)});
+ ok.forEach(r=>{r.it.meal=SH.meal;d.food.push(r.it);saveFav(r.it,r.prod||{},true);
+  const k=pickKey(r.text);if(k)(S.picks||(S.picks={}))[k]=r.it.key}); // onthoud welk product bij dit woord hoort
  const tot=ok.reduce((a,r)=>a+r.it.kcal,0),skipped=SH.review.length-ok.length;
  save();toast(`${ok.length} toegevoegd: ${f0(tot)} kcal ✓${skipped?` (${skipped} niet gevonden)`:''}`);closeSheet();
 };
@@ -732,7 +800,7 @@ function packPortion(q,pq){
  return null}
 function mapOff(p){const n=p.nutriments||{};let k=num(n['energy-kcal_100g']);if(k==null&&num(n.energy_100g)!=null)k=num(n.energy_100g)/4.184;
  const pk=packPortion(p.quantity,num(p.product_quantity));
- return{key:'off:'+p.code,code:p.code,name:(p.product_name_nl||p.product_name||p.product_name_fr||p.product_name_en||'').trim(),brand:(p.brands||'').split(',')[0].trim(),per100:k!=null?Math.round(k):null,serving:num(p.serving_quantity),portions:pk?[pk]:null}}
+ return{key:'off:'+p.code,code:p.code,drink:/\d\s*(ml|cl|l)\b/i.test(p.quantity||'')||undefined,name:(p.product_name_nl||p.product_name||p.product_name_fr||p.product_name_en||'').trim(),brand:(p.brands||'').split(',')[0].trim(),per100:k!=null?Math.round(k):null,serving:num(p.serving_quantity),portions:pk?[pk]:null}}
 async function getJSON(u){const c=new AbortController(),t=setTimeout(()=>c.abort(),15000);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw new Error(r.status);return await r.json()}finally{clearTimeout(t)}}
 let lastRes=[];
 async function offSearch(){
@@ -787,11 +855,8 @@ function pick(prod,item){
  SH.prod={...prod};SH.alc=false;$('alcBox').style.display='none';
  const pq=item?null:parseQty($('q').value);
  const por=prod.portions||[];
- const dp=defPortion(por);
- let n=item?item.n:(pq&&pq.n)||1,g=item?item.g:(pq&&(pq.grams||pq.unitG))||(pq&&prod.unitKcal==null&&spoonG(prod,pq.spoon))||prod.g||(dp&&dp[1])||prod.serving||null;
- // geen gekende portie: start bij 1 × 100 g en laat het gewicht schatten
- if(g==null){g=100;if(!item)n=1}
- if(!item&&pq&&pq.grams)n=1;
+ const am=item?{n:item.n,g:item.g}:amountFor(prod,pq,false);
+ let n=am.n,g=am.g??100;
  const manual=!prod.name,newCode=manual&&!!prod.code;
  $('pName').textContent=newCode?'Nieuw product':prod.name||'Zelf ingeven';
  $('pBrand').innerHTML=newCode&&prod.per100!=null?`Open Food Facts kent barcode ${esc(prod.code)}, maar zonder naam. Geef een naam in; de volgende keer herkent de app deze barcode meteen.`:newCode?`Barcode ${esc(prod.code)} is nog niet gekend. Neem de <b>naam</b> en de <b>kcal per 100 g</b> over van het etiket, en het gewicht van één stuk of potje. De volgende keer herkent de app deze barcode meteen.`:esc(prod.brand||'');
@@ -799,12 +864,11 @@ function pick(prod,item){
  const unit=prod.unitKcal!=null||(manual&&!newCode);SH.unit=unit;
  $('per100Box').style.display=unit?'none':'block';$('gramBox').style.display=unit?'none':'block';$('unitBox').style.display=unit?'block':'none';
  $('pPer100').value=cv(prod.per100);$('pUnit').value=cv(prod.unitKcal);$('pG').value=cv(Math.round(g*10)/10);$('pN').value=cv(n);
- const opts=por.map(([l,gr])=>[gr,`${l} · ${cv(gr)} g`]);
- if(prod.serving&&prod.serving!==100)opts.push([prod.serving,`portie (etiket) · ${cv(prod.serving)} g`]);
- const real=opts.length;
- spoonsFor(por).forEach(([l,gr])=>opts.push([gr,l]));
- if(real)opts.push([100,'100 g']);else[50,100,125,150,200,250].forEach(v=>opts.push([v,v+' g']));
- $('gChips').innerHTML=opts.map(([v,l])=>`<button class="chip" data-g="${v}">${l}</button>`).join('');
+ // dezelfde snelle porties als in de controlelijst; zonder eigen porties ook enkele gewichten
+ $('gramBox').querySelector('label').textContent=isDrink(prod)?'Hoeveelheid per glas of fles (ml)':'Gewicht van 1 stuk of potje (g of ml)';
+ const opts=porOpts(prod).map(([l,gr])=>[gr,/^\d+ g$|\bcl\b|\(|±/.test(l)?l:`${l} · ${cv(gr)} g`]);
+ if(!por.length&&!isDrink(prod))[50,125,150,200,250].forEach(v=>{if(!opts.some(o=>o[0]===v))opts.push([v,v+' g'])});
+ $('gChips').innerHTML=opts.map(([v,l])=>`<button class="chip" data-g="${v}">${esc(l)}</button>`).join('');
  $('gChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('pG').value=cv(b.dataset.g);calc()});
  renderMealChips();
  $('pAdd').textContent=SH.editIdx!=null||SH.rvIdx!=null?'Bewaren':'Toevoegen';
@@ -832,7 +896,7 @@ $('pAdd').onclick=()=>{
  if(SH.alc){const ml=num($('aMl').value);name=`${name} (${cv(num($('aPct').value))}%, ${ml%10?cv(ml)+' ml':cv(ml/10)+' cl'}${num($('aCarb').value)==null?', zonder suikers':''})`}
  const n=num($('pN').value)||1;
  const it={name,brand:pr.brand||'',meal:SH.meal,n,kcal:Math.round(k),key:pr.key||'own:'+norm(name)};
- if(SH.alc){it.unitKcal=Math.round(alcPer());it.kcal=Math.round(n*it.unitKcal)}else if(SH.unit)it.unitKcal=num($('pUnit').value);else{it.g=num($('pG').value);it.per100=num($('pPer100').value);const pl=allPor(pr.portions).find(p=>p[1]===it.g);if(pl)it.pl=pl[0]}
+ if(SH.alc){it.unitKcal=Math.round(alcPer());it.kcal=Math.round(n*it.unitKcal)}else if(SH.unit)it.unitKcal=num($('pUnit').value);else{it.g=num($('pG').value);it.per100=num($('pPer100').value);const pl=porLabel(pr,it.g);if(pl)it.pl=pl}
  if(SH.rvIdx!=null){ // terug naar de controlelijst
   SH.review[SH.rvIdx]={text:SH.review[SH.rvIdx].text,prod:{...pr,name,key:it.key,unitKcal:it.unitKcal??pr.unitKcal},it,flag:null};
   SH.rvIdx=null;showStep('review');renderReview();return}
